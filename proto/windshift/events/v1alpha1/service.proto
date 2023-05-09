@@ -1,0 +1,236 @@
+syntax = "proto3";
+
+package windshift.events.v1alpha1;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+// Service to work with events, including publishing and subscribing to events.
+service EventsService {
+	// Ensure that a certain stream exists. Used to create streams to collect
+	// events for certain subjects. Subscriptions can then be created to
+	// subscribe to these streams.
+	rpc EnsureStream(EnsureStreamRequest) returns (EnsureStreamResponse);
+
+	// Ensure that a certain subscription exists and is available for receiving
+	// events.
+	rpc EnsureSubscription(EnsureSubscriptionRequest)
+	    returns (EnsureSubscriptionResponse);
+
+	// Delete a subscription.
+	rpc DeleteSubscription(DeleteSubscriptionRequest)
+	    returns (DeleteSubscriptionResponse);
+
+	// Publish an event.
+	rpc PublishEvent(PublishEventRequest) returns (PublishEventResponse) {}
+
+	// Events subscribes to events and returns them as they are published. The
+	// stream is bidirectional, so the client can accept/reject events as they
+	// are received.
+	rpc Events(stream EventsRequest) returns (stream EventsResponse) {}
+}
+
+message EnsureStreamRequest {
+	message RetentionPolicy {
+		// Maximum age of events in the stream. Events older than this will be
+		// deleted.
+		optional google.protobuf.Duration max_age = 1;
+		// Maximum number of events in the stream. Events beyond this limit will
+		// be deleted.
+		optional uint64 max_messages = 2;
+		// Maximum size of events in the stream. Events beyond this limit will
+		// be deleted.
+		optional uint64 max_bytes = 3;
+	}
+
+	// Name of the stream. Will be referenced by subscribers.
+	string name = 1;
+	// Retention policy for the stream.
+	optional RetentionPolicy retention_policy = 2;
+	// Subjects that the stream will collect events for.
+	repeated string subjects = 3;
+}
+
+message EnsureStreamResponse {}
+
+message EnsureSubscriptionRequest {
+	// A pointer to start receiving events from.
+	message StreamPointer {
+		oneof pointer {
+			// Receive all events currently available.
+			bool start = 1;
+			// Receive only future events.
+			bool end = 2;
+			// The time to start receiving events from.
+			google.protobuf.Timestamp time = 3;
+			// The id of the event to start receiving events from.
+			uint64 id = 5;
+		}
+	}
+
+	// The event stream to subscribe to.
+	string stream = 1;
+	// The id of the subscription, should be unique to stream if provided.
+	// Providing one activates support for resumption and shared processing
+	// of events.
+	//
+	// If not provided, the subscription will be anonymous and will not be
+	// able to resume or share processing of events.
+	optional string name = 2;
+	// The subjects to subscribe to.
+	repeated string subjects = 3;
+	// The pointer to start receiving events from. Used to control how this
+	// subscriber will receive old events. If not specified only new events
+	// will be received.
+	optional StreamPointer pointer = 4;
+	// The timeout for events, after which they will be resent. If not
+	// provided a 30 second timeout will be used.
+	//
+	// Events will need to be accepted, rejected or pinged before the
+	// timeout expires, otherwise they will be marked as failed and queued
+	// for delivery again.
+	optional google.protobuf.Duration timeout = 5;
+}
+
+message EnsureSubscriptionResponse {
+	// The id of the subscription.
+	string id = 1;
+}
+
+message DeleteSubscriptionRequest {
+	// The id of the subscription to delete.
+	string id = 1;
+}
+
+message DeleteSubscriptionResponse {}
+
+// Request to publish an event.
+message PublishEventRequest {
+	// The subject of the event.
+	string subject = 1;
+	// The event to publish.
+	google.protobuf.Any data = 2;
+	// Timestamp of the event, if not set, the server will use the current time.
+	optional google.protobuf.Timestamp timestamp = 3;
+	// Key used to prevent duplicate events from being stored if a retry is
+	// needed. Should be set to a unique value for each publish request of a
+	// specific event.
+	optional string idempotency_key = 4;
+	// The expected last id of the event subject. If the last id of the event
+	// subject is not equal to this value, the publish request will fail.
+	optional uint64 expected_last_id = 5;
+}
+
+// Response to publish an event.
+message PublishEventResponse {
+	// The id of the published event.
+	uint64 id = 1;
+}
+
+// Request to subscribe to events or to accept, reject or ping events.
+// The first message sent on the stream must be a Subscribe message, after
+// which the client can send Accept, Reject or Ping messages.
+//
+// Events should be either accepted or rejected, otherwise they will be resent
+// after a timeout. If processing takes of an event takes a while pings should
+// be sent to indicate that the event is still being processed.
+message EventsRequest {
+	// Subscribe to events, must be sent as the first message in the stream.
+	message Subscribe {
+		// The id of the stream to subscribe to.
+		string stream = 1;
+		// The id of the subscriber, should be an id previously created using
+		// EnsureSubscription.
+		string subscriber_id = 2;
+		// Concurrency is used to set an approximate number of events that can
+		// be processed at the same time.
+		optional uint64 concurrency = 3;
+		// Control if the stream will automatically close when all events have
+		// been received. Setting this will check what the latest event is at
+		// the time of subscribing and close the stream when that event has
+		// been received.
+		optional bool auto_close = 4;
+	}
+
+	// Accept indicates that some events have been successfully processed.
+	message Accept {
+		// The identifiers to accept.
+		repeated uint64 ids = 1;
+	}
+
+	// Reject indicates that some events have failed to be processed.
+	message Reject {
+		// The identifiers to reject.
+		repeated uint64 ids = 1;
+		// Whether to retry the events or not.
+		bool retry = 2;
+	}
+
+	// Ping events to indicate that they are still being processed.
+	message Ping {
+		// The identifiers of the events that are currently being processed.
+		repeated uint64 ids = 1;
+	}
+
+	oneof request {
+		// Subscribe to events, must be sent as the first message in the stream
+		// to establish what events to listen to.
+		Subscribe subscribe = 1;
+		// Acknowledge that some events have been successfully processed.
+		Accept accept = 2;
+		// Acknowledge that some events have failed to be processed.
+		Reject reject = 3;
+		// Ping events to indicate that they are still being processed.
+		Ping ping = 4;
+	}
+}
+
+message EventsResponse {
+	// Confirmation that the client has subscribed to events.
+	message Subscribed {}
+
+	// Confirmation that some events were accepted.
+	message AcceptConfirmation {
+		// The identifiers that were accepted.
+		repeated uint64 ids = 1;
+	}
+
+	// Confirmation that some events were rejected.
+	message RejectConfirmation {
+		// The identifiers that were rejected.
+		repeated uint64 ids = 1;
+	}
+
+	// Confirmation that a ping was received.
+	message PingConfirmation {
+		// The identifiers of the events that are currently being processed.
+		repeated uint64 ids = 1;
+	}
+
+	oneof response {
+		// An event that was published.
+		Event event = 1;
+
+		// Confirmation that the client has subscribed to events.
+		Subscribed subscribed = 2;
+		// Confirmation that some events were accepted.
+		AcceptConfirmation accept_confirmation = 3;
+		// Confirmation that some events were rejected.
+		RejectConfirmation reject_confirmation = 4;
+		// Confirmation that a ping was received.
+		PingConfirmation ping_confirmation = 5;
+	}
+}
+
+// An event that was published.
+message Event {
+	// Identifier of the event, used to accept, reject or ping the event. Can
+	// also be used to resume processing of events if using an ephemeral
+	// subscriber.
+	uint64 id = 1;
+	// When the event was published.
+	google.protobuf.Timestamp publish_time = 2;
+	// Data of the event.
+	google.protobuf.Any data = 3;
+}

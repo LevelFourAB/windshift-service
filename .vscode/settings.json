@@ -1,0 +1,10 @@
+{
+	"[proto3]": {
+		"editor.defaultFormatter": "xaver.clang-format",
+		"editor.formatOnSave": true
+	},
+	"[markdown]": {
+		"editor.defaultFormatter": "dprint.dprint",
+		"editor.formatOnSave": true
+	},
+}

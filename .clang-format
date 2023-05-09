@@ -1,0 +1,8 @@
+---
+Language: Proto
+BasedOnStyle: Google
+ColumnLimit: 80
+UseTab: ForIndentation
+IndentWidth: 4
+TabWidth: 4
+...

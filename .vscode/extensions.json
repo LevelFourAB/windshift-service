@@ -1,0 +1,8 @@
+{
+	"recommendations": [
+		"EditorConfig.EditorConfig",
+		"xaver.clang-format",
+		"dprint.dprint",
+		"bufbuild.vscode-buf",
+	]
+}

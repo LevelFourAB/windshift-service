@@ -1,0 +1,55 @@
+{
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"extends": [
+		"config:base",
+		"group:recommended"
+	],
+
+	"pre-commit": {
+		"enabled": true
+	},
+
+	"labels": [ "dependencies" ],
+
+	"semanticCommits": "enabled",
+	"semanticCommitScope": "",
+	"semanticCommitType": "chore",
+
+	"postUpdateOptions": [
+		"gomodTidy",
+		"gomodUpdateImportPaths"
+	],
+
+	"packageRules": [
+		{
+			"matchUpdateTypes": [ "major", "minor" ],
+			"semanticCommitType": "feat"
+		},
+		{
+			"matchUpdateTypes": [ "patch" ],
+			"semanticCommitType": "fix"
+		},
+		{
+			"matchPackageNames": [
+			  "github.com/onsi/ginkgo/v2",
+			  "github.com/onsi/gomega"
+			],
+			"semanticCommitType": "build"
+		},
+		{
+			"groupName": "pre-commit",
+			"matchManagers": [ "pre-commit" ],
+			"semanticCommitType": "build"
+		},
+		{
+			"groupName": "Docker Compose",
+			"matchManagers": [ "docker-compose" ],
+			"semanticCommitType": "build"
+		},
+		{
+			"groupName": "GitHub Actions",
+			"matchManagers": [ "github-actions" ],
+			"semanticCommitType": "build"
+		}
+	]
+}
