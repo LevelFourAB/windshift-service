@@ -2,10 +2,12 @@ package v1alpha1_test
 
 import (
 	"context"
+	"time"
 	eventsv1alpha1 "windshift/service/internal/proto/windshift/events/v1alpha1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 var _ = Describe("Streams", func() {
@@ -39,6 +41,58 @@ var _ = Describe("Streams", func() {
 			Subjects: []string{
 				"test",
 				"test.>",
+			},
+		})
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	It("can create a stream with multiple subjects", func(ctx context.Context) {
+		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
+			Name: "test",
+			Subjects: []string{
+				"test1",
+				"test2",
+			},
+		})
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	It("can create stream with max age", func(ctx context.Context) {
+		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
+			Name: "test",
+			Subjects: []string{
+				"test",
+			},
+			RetentionPolicy: &eventsv1alpha1.EnsureStreamRequest_RetentionPolicy{
+				MaxAge: durationpb.New(1 * time.Hour),
+			},
+		})
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	It("can create stream with max messages", func(ctx context.Context) {
+		maxMessages := uint64(100)
+		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
+			Name: "test",
+			Subjects: []string{
+				"test",
+			},
+			RetentionPolicy: &eventsv1alpha1.EnsureStreamRequest_RetentionPolicy{
+				MaxMessages: &maxMessages,
+			},
+		})
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	It("can create stream with max bytes", func(ctx context.Context) {
+		maxBytes := uint64(1024)
+		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
+			Name: "test",
+			Subjects: []string{
+				"test",
+			},
+			RetentionPolicy: &eventsv1alpha1.EnsureStreamRequest_RetentionPolicy{
+				MaxBytes: &maxBytes,
 			},
 		})
 		Expect(err).ToNot(HaveOccurred())
