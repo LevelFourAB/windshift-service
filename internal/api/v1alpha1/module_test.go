@@ -22,6 +22,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 func GetClient() eventsv1alpha1.EventsServiceClient {
@@ -139,4 +141,10 @@ func getNATS() *nats.Conn {
 		natsConn.Close()
 	})
 	return natsConn
+}
+
+func Data(msg proto.Message) *anypb.Any {
+	data, err := anypb.New(msg)
+	Expect(err).ToNot(HaveOccurred())
+	return data
 }
