@@ -5,16 +5,22 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/nats-io/nats.go"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
 type Manager struct {
-	logger    *zap.Logger
+	logger        *zap.Logger
+	tracer        trace.Tracer
+	w3cPropagator propagation.TextMapPropagator
+
 	jetStream nats.JetStreamContext
 }
 
 func NewManager(
 	logger *zap.Logger,
+	tracer trace.Tracer,
 	conn *nats.Conn,
 ) (*Manager, error) {
 	js, err := conn.JetStream()
@@ -23,26 +29,19 @@ func NewManager(
 	}
 
 	m := &Manager{
-		logger:    logger,
-		jetStream: js,
+		logger:        logger,
+		tracer:        tracer,
+		w3cPropagator: propagation.TraceContext{},
+		jetStream:     js,
 	}
 
 	return m, nil
 }
 
-func (n *Manager) EnsureStream(ctx context.Context, config *StreamConfig) (*Stream, error) {
-	return EnsureStream(ctx, n.jetStream, config)
+func (m *Manager) EnsureStream(ctx context.Context, config *StreamConfig) (*Stream, error) {
+	return EnsureStream(ctx, m.jetStream, config)
 }
 
-func (n *Manager) EnsureSubscription(ctx context.Context, config *ConsumerConfig) (*Consumer, error) {
-	return EnsureConsumer(ctx, n.jetStream, config)
-}
-
-// Publish an event.
-func (n *Manager) Publish(ctx context.Context, config *PublishConfig) (*PublishedEvent, error) {
-	return Publish(ctx, n.jetStream, config)
-}
-
-func (n *Manager) Subscribe(ctx context.Context, config *QueueConfig) (*Queue, error) {
-	return newQueue(ctx, n.logger, n.jetStream, config)
+func (m *Manager) EnsureSubscription(ctx context.Context, config *ConsumerConfig) (*Consumer, error) {
+	return EnsureConsumer(ctx, m.jetStream, config)
 }

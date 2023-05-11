@@ -2,10 +2,15 @@ package events
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/nats-io/nats.go"
+	"go.opentelemetry.io/otel/codes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.18.0"
+	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -21,17 +26,25 @@ type PublishConfig struct {
 	PublishedTime *time.Time
 	// IdempotencyKey is the idempotency key for the event. If empty, the event will not be idempotent.
 	IdempotencyKey string
-	// TraceParent is the trace parent header for the event.
-	TraceParent *string
-	// TraceState is the trace state header for the event.
-	TraceState *string
 }
 
 type PublishedEvent struct {
 	ID uint64
 }
 
-func Publish(ctx context.Context, js nats.JetStreamContext, config *PublishConfig) (*PublishedEvent, error) {
+func (m *Manager) Publish(ctx context.Context, config *PublishConfig) (*PublishedEvent, error) {
+	ctx, span := m.tracer.Start(
+		ctx,
+		config.Subject+" publish",
+		trace.WithSpanKind(trace.SpanKindProducer),
+		trace.WithAttributes(
+			semconv.MessagingSystem("nats"),
+			semconv.MessagingOperationPublish,
+			semconv.MessagingDestinationName(config.Subject),
+		),
+	)
+	defer span.End()
+
 	// Create the message
 	msg := &nats.Msg{
 		Subject: config.Subject,
@@ -61,27 +74,35 @@ func Publish(ctx context.Context, js nats.JetStreamContext, config *PublishConfi
 		msg.Header.Set("Nats-Msg-Id", config.IdempotencyKey)
 	}
 
-	// Set the trace parent
-	if config.TraceParent != nil {
-		msg.Header.Set("WS-Trace-Parent", *config.TraceParent)
-	}
-
-	// Set the trace state
-	if config.TraceState != nil {
-		msg.Header.Set("WS-Trace-State", *config.TraceState)
-	}
-
 	// Set the expected subject sequence
 	if config.ExpectedSubjectSeq != nil {
 		publishOpts = append(publishOpts, nats.ExpectLastSequencePerSubject(*config.ExpectedSubjectSeq))
 	}
 
+	// Inject the tracing headers
+	m.w3cPropagator.Inject(ctx, eventTracingHeaders{
+		headers: &msg.Header,
+	})
+
+	m.logger.Debug(
+		"Publishing event",
+		zap.String("subject", config.Subject),
+		zap.String("dataType", config.Data.TypeUrl),
+		zap.Any("headers", msg.Header),
+	)
+
 	// Publish the message.
-	ack, err := js.PublishMsg(msg, publishOpts...)
+	ack, err := m.jetStream.PublishMsg(msg, publishOpts...)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to publish message")
 		return nil, errors.Wrap(err, "failed to publish message")
 	}
 
+	span.SetAttributes(
+		semconv.MessagingMessageID(fmt.Sprintf("%d", ack.Sequence)),
+	)
+	span.SetStatus(codes.Ok, "")
 	return &PublishedEvent{
 		ID: ack.Sequence,
 	}, nil

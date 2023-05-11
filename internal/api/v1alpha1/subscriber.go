@@ -6,6 +6,7 @@ import (
 	eventsv1alpha1 "windshift/service/internal/proto/windshift/events/v1alpha1"
 
 	"github.com/cockroachdb/errors"
+	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -50,7 +51,7 @@ func (e *EventsServiceServer) Events(server eventsv1alpha1.EventsService_EventsS
 			}
 			request, err2 := server.Recv()
 			if err2 != nil {
-				// TODO: Logging?
+				e.logger.Warn("Could not receive message", zap.Error(err2))
 				return
 			}
 
@@ -68,18 +69,25 @@ func (e *EventsServiceServer) Events(server eventsv1alpha1.EventsService_EventsS
 			eventMap[event.StreamSeq] = event
 			// TODO: Keep track of the expiry of events
 
+			// Create the common headers
+			headers := &eventsv1alpha1.Headers{
+				Timestamp:      timestamppb.New(event.Headers.PublishedAt),
+				IdempotencyKey: event.Headers.IdempotencyKey,
+			}
+
+			// Inject the span from the event context
+			e.w3cPropagator.Inject(event.Context, eventTracingHeaders{
+				headers: headers,
+			})
+
+			// Send the actual event
 			err = server.Send(&eventsv1alpha1.EventsResponse{
 				Response: &eventsv1alpha1.EventsResponse_Event{
 					Event: &eventsv1alpha1.Event{
 						Id:      event.StreamSeq,
 						Data:    event.Data,
 						Subject: event.Subject,
-						Headers: &eventsv1alpha1.Headers{
-							Timestamp:      timestamppb.New(event.Headers.PublishedAt),
-							IdempotencyKey: event.Headers.IdempotencyKey,
-							TraceParent:    event.Headers.TraceParent,
-							TraceState:     event.Headers.TraceState,
-						},
+						Headers: headers,
 					},
 				},
 			})

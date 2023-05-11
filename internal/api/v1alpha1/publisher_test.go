@@ -65,11 +65,9 @@ var _ = Describe("Publisher", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		_, err = service.PublishEvent(ctx, &eventsv1alpha1.PublishEventRequest{
-			Subject: "test",
-			Data:    data,
-			Headers: &eventsv1alpha1.Headers{
-				Timestamp: timestamppb.Now(),
-			},
+			Subject:   "test",
+			Data:      data,
+			Timestamp: timestamppb.Now(),
 		})
 		Expect(err).ToNot(HaveOccurred())
 	})

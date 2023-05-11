@@ -8,6 +8,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"go.opentelemetry.io/otel"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap/zaptest"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -21,6 +24,7 @@ var _ = Describe("Queue", func() {
 
 		natsEvents, err := events.NewManager(
 			zaptest.NewLogger(GinkgoT()),
+			otel.Tracer("tests"),
 			natsConn,
 		)
 		Expect(err).ToNot(HaveOccurred())
@@ -798,6 +802,53 @@ var _ = Describe("Queue", func() {
 			case <-queue.Events():
 				Fail("event received again")
 			case <-time.After(200 * time.Millisecond):
+			}
+		})
+	})
+
+	Describe("OpenTelemetry", func() {
+		var tracer trace.Tracer
+
+		BeforeEach(func() {
+			// Set up a trace.Tracer that will record all spans
+			tracingProvider := sdktrace.NewTracerProvider()
+			tracer = tracingProvider.Tracer("test")
+		})
+
+		It("receiving an event creates a span", func(ctx context.Context) {
+			ctx, span := tracer.Start(ctx, "test")
+			defer span.End()
+
+			sub, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+				Stream: "events",
+				Subjects: []string{
+					"events.>",
+				},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+				Stream: "events",
+				Name:   sub.ID,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			defer queue.Close()
+
+			_, err = manager.Publish(ctx, &events.PublishConfig{
+				Subject: "events.test",
+				Data:    Data(&emptypb.Empty{}),
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			select {
+			case event := <-queue.Events():
+				Expect(event).ToNot(BeNil())
+
+				eventSpan := trace.SpanFromContext(event.Context)
+				Expect(eventSpan.SpanContext().IsValid()).To(BeTrue())
+				Expect(eventSpan.SpanContext().TraceID().String()).To(Equal(span.SpanContext().TraceID().String()))
+			case <-time.After(200 * time.Millisecond):
+				Fail("no event received")
 			}
 		})
 	})

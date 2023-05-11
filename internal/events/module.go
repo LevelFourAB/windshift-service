@@ -8,5 +8,6 @@ import (
 var Module = fx.Module(
 	"events",
 	fx.Provide(sprout.Logger("events"), fx.Private),
+	fx.Provide(sprout.ServiceTracer(), fx.Private),
 	fx.Provide(NewManager),
 )

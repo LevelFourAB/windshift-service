@@ -172,14 +172,18 @@ message DeleteConsumerResponse {}
 message PublishEventRequest {
 	// The subject of the event.
 	string subject = 1;
-	// Headers to use for the event.
-	optional Headers headers = 2;
 	// The event to publish.
-	google.protobuf.Any data = 3;
+	google.protobuf.Any data = 2;
+	// Timestamp of the event, if not set, the server will use the current time.
+	optional google.protobuf.Timestamp timestamp = 3;
+	// Key used to prevent duplicate events from being stored if a retry is
+	// needed. Should be set to a unique value for each publish request of a
+	// specific event.
+	optional string idempotency_key = 4;
 	// The id of the last event that was published to the stream. Used for
 	// optimistic concurrency control, if the last event id does not match
 	// the current last event id, the publish will fail.
-	optional uint64 expected_last_id = 4;
+	optional uint64 expected_last_id = 5;
 }
 
 // Response to publish an event.

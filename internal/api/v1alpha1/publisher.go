@@ -16,23 +16,13 @@ func (e *EventsServiceServer) PublishEvent(ctx context.Context, req *eventsv1alp
 		PublishedTime: &now,
 	}
 
-	if req.Headers != nil {
-		if req.Headers.Timestamp != nil {
-			publishedAt := req.Headers.Timestamp.AsTime()
-			config.PublishedTime = &publishedAt
-		}
+	if req.Timestamp != nil {
+		publishedAt := req.Timestamp.AsTime()
+		config.PublishedTime = &publishedAt
+	}
 
-		if req.Headers.IdempotencyKey != nil {
-			config.IdempotencyKey = *req.Headers.IdempotencyKey
-		}
-
-		if req.Headers.TraceParent != nil {
-			config.TraceParent = req.Headers.TraceParent
-		}
-
-		if req.Headers.TraceState != nil {
-			config.TraceState = req.Headers.TraceState
-		}
+	if req.IdempotencyKey != nil {
+		config.IdempotencyKey = *req.IdempotencyKey
 	}
 
 	if req.ExpectedLastId != nil {

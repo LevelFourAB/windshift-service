@@ -1,10 +1,13 @@
 package events
 
 import (
+	"context"
 	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/nats-io/nats.go"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -23,8 +26,13 @@ type Headers struct {
 // Reject(shouldRetry) to acknowledge the event. If the deadline is exceeded,
 // the event will be redelivered. To extend the deadline, use Ping().
 type Event struct {
+	span   trace.Span
 	logger *zap.Logger
 	msg    *nats.Msg
+
+	// Context is the context of this event. It will be valid until the event
+	// expires, is accepted or rejected.
+	Context context.Context
 
 	// Subject is the subject the event was published to.
 	Subject string
@@ -45,15 +53,16 @@ type Event struct {
 	Data *anypb.Any
 }
 
-func newEvent(logger *zap.Logger, msg nats.Msg) (*Event, error) {
-	md, err := msg.Metadata()
-	if err != nil {
-		return nil, errors.Wrap(err, "could not get message metadata")
-	}
-
+func newEvent(
+	ctx context.Context,
+	span trace.Span,
+	logger *zap.Logger,
+	msg nats.Msg,
+	md *nats.MsgMetadata,
+) (*Event, error) {
 	// Unmarshal protobuf message from msg.Data
 	data := &anypb.Any{}
-	err = proto.Unmarshal(msg.Data, data)
+	err := proto.Unmarshal(msg.Data, data)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not unmarshal message")
 	}
@@ -95,8 +104,10 @@ func newEvent(logger *zap.Logger, msg nats.Msg) (*Event, error) {
 	msg.Data = nil
 
 	return &Event{
+		span:            span,
 		logger:          logger,
 		msg:             &msg,
+		Context:         ctx,
 		Subject:         msg.Subject,
 		SubscriptionSeq: md.Sequence.Stream,
 		StreamSeq:       md.Sequence.Consumer,
@@ -118,20 +129,26 @@ func (e *Event) Ping() error {
 	e.logger.Debug("Pinging event", zap.Uint64("streamSeq", e.StreamSeq))
 	err := e.msg.InProgress()
 	if err != nil {
+		e.span.RecordError(err)
 		return errors.Wrap(err, "could not ping message")
 	}
+	e.span.AddEvent("pinged")
 
 	return nil
 }
 
 // Accept accepts the event. The event will be removed from the queue.
 func (e *Event) Accept() error {
+	defer e.span.End()
+
 	e.logger.Debug("Accepting event", zap.Uint64("streamSeq", e.StreamSeq))
 	err := e.msg.Ack()
 	if err != nil {
+		e.span.RecordError(err)
 		return errors.Wrap(err, "could not accept message")
 	}
 
+	e.span.SetStatus(codes.Ok, "")
 	return nil
 }
 
@@ -139,21 +156,29 @@ func (e *Event) Accept() error {
 // redelivered after a certain amount of time. If false, the event will be
 // permanently rejected and not redelivered.
 func (e *Event) Reject(allowRedeliver bool) error {
+	defer e.span.End()
+
 	if allowRedeliver {
+		// The event should be redelivered if possible
 		e.logger.Debug("Rejecting event", zap.Uint64("streamSeq", e.StreamSeq))
 		err := e.msg.Nak()
 		if err != nil {
+			e.span.RecordError(err)
 			return errors.Wrap(err, "could not reject message")
 		}
 
+		e.span.SetStatus(codes.Error, "event rejected")
 		return nil
 	}
 
+	// This is a permanent rejection, terminate the event
 	e.logger.Debug("Permanently rejecting event", zap.Uint64("streamSeq", e.StreamSeq))
 	err := e.msg.Term()
 	if err != nil {
+		e.span.RecordError(err)
 		return errors.Wrap(err, "could not permanently reject message")
 	}
 
+	e.span.SetStatus(codes.Error, "event permanently rejected")
 	return nil
 }
