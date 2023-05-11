@@ -37,7 +37,7 @@ var _ = Describe("Events", func() {
 
 			client, err := service.Events(ctx)
 			Expect(err).ToNot(HaveOccurred())
-			defer client.CloseSend()
+			defer client.CloseSend() //nolint:errcheck
 
 			err = client.Send(&eventsv1alpha1.EventsRequest{
 				Request: &eventsv1alpha1.EventsRequest_Subscribe_{
@@ -69,7 +69,7 @@ var _ = Describe("Events", func() {
 
 			client, err := service.Events(ctx)
 			Expect(err).ToNot(HaveOccurred())
-			defer client.CloseSend()
+			defer client.CloseSend() //nolint:errcheck
 
 			err = client.Send(&eventsv1alpha1.EventsRequest{
 				Request: &eventsv1alpha1.EventsRequest_Subscribe_{
@@ -131,7 +131,7 @@ var _ = Describe("Events", func() {
 
 			client, err := service.Events(ctx)
 			Expect(err).ToNot(HaveOccurred())
-			defer client.CloseSend()
+			defer client.CloseSend() //nolint:errcheck
 
 			err = client.Send(&eventsv1alpha1.EventsRequest{
 				Request: &eventsv1alpha1.EventsRequest_Subscribe_{
