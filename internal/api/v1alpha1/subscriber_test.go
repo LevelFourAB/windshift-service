@@ -18,8 +18,10 @@ var _ = Describe("Events", func() {
 
 		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
 			Name: "events",
-			Subjects: []string{
-				"events.>",
+			Source: &eventsv1alpha1.EnsureStreamRequest_Subjects_{
+				Subjects: &eventsv1alpha1.EnsureStreamRequest_Subjects{
+					Subjects: []string{"events.>"},
+				},
 			},
 		})
 		Expect(err).ToNot(HaveOccurred())
@@ -27,7 +29,7 @@ var _ = Describe("Events", func() {
 
 	Describe("Ephemeral Subscriptions", func() {
 		It("can subscribe", func(ctx context.Context) {
-			s, err := service.EnsureSubscription(ctx, &eventsv1alpha1.EnsureSubscriptionRequest{
+			s, err := service.EnsureConsumer(ctx, &eventsv1alpha1.EnsureConsumerRequest{
 				Stream: "events",
 				Subjects: []string{
 					"events.test",
@@ -59,7 +61,7 @@ var _ = Describe("Events", func() {
 		})
 
 		It("can subscribe and receive events", NodeTimeout(5*time.Second), func(ctx context.Context) {
-			s, err := service.EnsureSubscription(ctx, &eventsv1alpha1.EnsureSubscriptionRequest{
+			s, err := service.EnsureConsumer(ctx, &eventsv1alpha1.EnsureConsumerRequest{
 				Stream: "events",
 				Subjects: []string{
 					"events.test",
@@ -121,7 +123,7 @@ var _ = Describe("Events", func() {
 		})
 
 		It("rejecting events redelivers them", NodeTimeout(5*time.Second), func(ctx context.Context) {
-			s, err := service.EnsureSubscription(ctx, &eventsv1alpha1.EnsureSubscriptionRequest{
+			s, err := service.EnsureConsumer(ctx, &eventsv1alpha1.EnsureConsumerRequest{
 				Stream: "events",
 				Subjects: []string{
 					"events.test",

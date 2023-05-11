@@ -15,12 +15,16 @@ type PublishConfig struct {
 	Subject string
 	// Data to publish
 	Data *anypb.Any
+	// ExpectedSubjectSeq is the expected sequence number of the subject.
+	ExpectedSubjectSeq *uint64
 	// PublishedTime is the time the event was published. If nil, the current time will be used.
 	PublishedTime *time.Time
 	// IdempotencyKey is the idempotency key for the event. If empty, the event will not be idempotent.
 	IdempotencyKey string
-	// ExpectedSubjectSeq is the expected sequence number of the subject.
-	ExpectedSubjectSeq *uint64
+	// TraceParent is the trace parent header for the event.
+	TraceParent *string
+	// TraceState is the trace state header for the event.
+	TraceState *string
 }
 
 type PublishedEvent struct {
@@ -55,6 +59,16 @@ func Publish(ctx context.Context, js nats.JetStreamContext, config *PublishConfi
 	// Set the idempotency key
 	if config.IdempotencyKey != "" {
 		msg.Header.Set("Nats-Msg-Id", config.IdempotencyKey)
+	}
+
+	// Set the trace parent
+	if config.TraceParent != nil {
+		msg.Header.Set("WS-Trace-Parent", *config.TraceParent)
+	}
+
+	// Set the trace state
+	if config.TraceState != nil {
+		msg.Header.Set("WS-Trace-State", *config.TraceState)
 	}
 
 	// Set the expected subject sequence

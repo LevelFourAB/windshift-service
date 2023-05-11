@@ -26,11 +26,10 @@ type EventsServiceClient interface {
 	// events for certain subjects. Subscriptions can then be created to
 	// subscribe to these streams.
 	EnsureStream(ctx context.Context, in *EnsureStreamRequest, opts ...grpc.CallOption) (*EnsureStreamResponse, error)
-	// Ensure that a certain subscription exists and is available for receiving
-	// events.
-	EnsureSubscription(ctx context.Context, in *EnsureSubscriptionRequest, opts ...grpc.CallOption) (*EnsureSubscriptionResponse, error)
-	// Delete a subscription.
-	DeleteSubscription(ctx context.Context, in *DeleteSubscriptionRequest, opts ...grpc.CallOption) (*DeleteSubscriptionResponse, error)
+	// Ensure that a certain consumer exists and can be subscribed to.
+	EnsureConsumer(ctx context.Context, in *EnsureConsumerRequest, opts ...grpc.CallOption) (*EnsureConsumerResponse, error)
+	// Delete a consumer.
+	DeleteConsumer(ctx context.Context, in *DeleteConsumerRequest, opts ...grpc.CallOption) (*DeleteConsumerResponse, error)
 	// Publish an event.
 	PublishEvent(ctx context.Context, in *PublishEventRequest, opts ...grpc.CallOption) (*PublishEventResponse, error)
 	// Events subscribes to events and returns them as they are published. The
@@ -56,18 +55,18 @@ func (c *eventsServiceClient) EnsureStream(ctx context.Context, in *EnsureStream
 	return out, nil
 }
 
-func (c *eventsServiceClient) EnsureSubscription(ctx context.Context, in *EnsureSubscriptionRequest, opts ...grpc.CallOption) (*EnsureSubscriptionResponse, error) {
-	out := new(EnsureSubscriptionResponse)
-	err := c.cc.Invoke(ctx, "/windshift.events.v1alpha1.EventsService/EnsureSubscription", in, out, opts...)
+func (c *eventsServiceClient) EnsureConsumer(ctx context.Context, in *EnsureConsumerRequest, opts ...grpc.CallOption) (*EnsureConsumerResponse, error) {
+	out := new(EnsureConsumerResponse)
+	err := c.cc.Invoke(ctx, "/windshift.events.v1alpha1.EventsService/EnsureConsumer", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *eventsServiceClient) DeleteSubscription(ctx context.Context, in *DeleteSubscriptionRequest, opts ...grpc.CallOption) (*DeleteSubscriptionResponse, error) {
-	out := new(DeleteSubscriptionResponse)
-	err := c.cc.Invoke(ctx, "/windshift.events.v1alpha1.EventsService/DeleteSubscription", in, out, opts...)
+func (c *eventsServiceClient) DeleteConsumer(ctx context.Context, in *DeleteConsumerRequest, opts ...grpc.CallOption) (*DeleteConsumerResponse, error) {
+	out := new(DeleteConsumerResponse)
+	err := c.cc.Invoke(ctx, "/windshift.events.v1alpha1.EventsService/DeleteConsumer", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -122,11 +121,10 @@ type EventsServiceServer interface {
 	// events for certain subjects. Subscriptions can then be created to
 	// subscribe to these streams.
 	EnsureStream(context.Context, *EnsureStreamRequest) (*EnsureStreamResponse, error)
-	// Ensure that a certain subscription exists and is available for receiving
-	// events.
-	EnsureSubscription(context.Context, *EnsureSubscriptionRequest) (*EnsureSubscriptionResponse, error)
-	// Delete a subscription.
-	DeleteSubscription(context.Context, *DeleteSubscriptionRequest) (*DeleteSubscriptionResponse, error)
+	// Ensure that a certain consumer exists and can be subscribed to.
+	EnsureConsumer(context.Context, *EnsureConsumerRequest) (*EnsureConsumerResponse, error)
+	// Delete a consumer.
+	DeleteConsumer(context.Context, *DeleteConsumerRequest) (*DeleteConsumerResponse, error)
 	// Publish an event.
 	PublishEvent(context.Context, *PublishEventRequest) (*PublishEventResponse, error)
 	// Events subscribes to events and returns them as they are published. The
@@ -143,11 +141,11 @@ type UnimplementedEventsServiceServer struct {
 func (UnimplementedEventsServiceServer) EnsureStream(context.Context, *EnsureStreamRequest) (*EnsureStreamResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method EnsureStream not implemented")
 }
-func (UnimplementedEventsServiceServer) EnsureSubscription(context.Context, *EnsureSubscriptionRequest) (*EnsureSubscriptionResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method EnsureSubscription not implemented")
+func (UnimplementedEventsServiceServer) EnsureConsumer(context.Context, *EnsureConsumerRequest) (*EnsureConsumerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EnsureConsumer not implemented")
 }
-func (UnimplementedEventsServiceServer) DeleteSubscription(context.Context, *DeleteSubscriptionRequest) (*DeleteSubscriptionResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteSubscription not implemented")
+func (UnimplementedEventsServiceServer) DeleteConsumer(context.Context, *DeleteConsumerRequest) (*DeleteConsumerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteConsumer not implemented")
 }
 func (UnimplementedEventsServiceServer) PublishEvent(context.Context, *PublishEventRequest) (*PublishEventResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PublishEvent not implemented")
@@ -186,38 +184,38 @@ func _EventsService_EnsureStream_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventsService_EnsureSubscription_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(EnsureSubscriptionRequest)
+func _EventsService_EnsureConsumer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EnsureConsumerRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventsServiceServer).EnsureSubscription(ctx, in)
+		return srv.(EventsServiceServer).EnsureConsumer(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/windshift.events.v1alpha1.EventsService/EnsureSubscription",
+		FullMethod: "/windshift.events.v1alpha1.EventsService/EnsureConsumer",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventsServiceServer).EnsureSubscription(ctx, req.(*EnsureSubscriptionRequest))
+		return srv.(EventsServiceServer).EnsureConsumer(ctx, req.(*EnsureConsumerRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventsService_DeleteSubscription_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteSubscriptionRequest)
+func _EventsService_DeleteConsumer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteConsumerRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventsServiceServer).DeleteSubscription(ctx, in)
+		return srv.(EventsServiceServer).DeleteConsumer(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/windshift.events.v1alpha1.EventsService/DeleteSubscription",
+		FullMethod: "/windshift.events.v1alpha1.EventsService/DeleteConsumer",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventsServiceServer).DeleteSubscription(ctx, req.(*DeleteSubscriptionRequest))
+		return srv.(EventsServiceServer).DeleteConsumer(ctx, req.(*DeleteConsumerRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -278,12 +276,12 @@ var EventsService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _EventsService_EnsureStream_Handler,
 		},
 		{
-			MethodName: "EnsureSubscription",
-			Handler:    _EventsService_EnsureSubscription_Handler,
+			MethodName: "EnsureConsumer",
+			Handler:    _EventsService_EnsureConsumer_Handler,
 		},
 		{
-			MethodName: "DeleteSubscription",
-			Handler:    _EventsService_DeleteSubscription_Handler,
+			MethodName: "DeleteConsumer",
+			Handler:    _EventsService_DeleteConsumer_Handler,
 		},
 		{
 			MethodName: "PublishEvent",

@@ -20,8 +20,10 @@ var _ = Describe("Streams", func() {
 	It("can create a stream", func(ctx context.Context) {
 		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
 			Name: "test",
-			Subjects: []string{
-				"test",
+			Source: &eventsv1alpha1.EnsureStreamRequest_Subjects_{
+				Subjects: &eventsv1alpha1.EnsureStreamRequest_Subjects{
+					Subjects: []string{"test"},
+				},
 			},
 		})
 		Expect(err).ToNot(HaveOccurred())
@@ -30,17 +32,20 @@ var _ = Describe("Streams", func() {
 	It("can update subjects of a stream", func(ctx context.Context) {
 		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
 			Name: "test",
-			Subjects: []string{
-				"test",
+			Source: &eventsv1alpha1.EnsureStreamRequest_Subjects_{
+				Subjects: &eventsv1alpha1.EnsureStreamRequest_Subjects{
+					Subjects: []string{"test"},
+				},
 			},
 		})
 		Expect(err).ToNot(HaveOccurred())
 
 		_, err = service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
 			Name: "test",
-			Subjects: []string{
-				"test",
-				"test.>",
+			Source: &eventsv1alpha1.EnsureStreamRequest_Subjects_{
+				Subjects: &eventsv1alpha1.EnsureStreamRequest_Subjects{
+					Subjects: []string{"test", "test.>"},
+				},
 			},
 		})
 		Expect(err).ToNot(HaveOccurred())
@@ -49,9 +54,10 @@ var _ = Describe("Streams", func() {
 	It("can create a stream with multiple subjects", func(ctx context.Context) {
 		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
 			Name: "test",
-			Subjects: []string{
-				"test1",
-				"test2",
+			Source: &eventsv1alpha1.EnsureStreamRequest_Subjects_{
+				Subjects: &eventsv1alpha1.EnsureStreamRequest_Subjects{
+					Subjects: []string{"test"},
+				},
 			},
 		})
 		Expect(err).ToNot(HaveOccurred())
@@ -60,8 +66,10 @@ var _ = Describe("Streams", func() {
 	It("can create stream with max age", func(ctx context.Context) {
 		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
 			Name: "test",
-			Subjects: []string{
-				"test",
+			Source: &eventsv1alpha1.EnsureStreamRequest_Subjects_{
+				Subjects: &eventsv1alpha1.EnsureStreamRequest_Subjects{
+					Subjects: []string{"test"},
+				},
 			},
 			RetentionPolicy: &eventsv1alpha1.EnsureStreamRequest_RetentionPolicy{
 				MaxAge: durationpb.New(1 * time.Hour),
@@ -70,15 +78,17 @@ var _ = Describe("Streams", func() {
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("can create stream with max messages", func(ctx context.Context) {
-		maxMessages := uint64(100)
+	It("can create stream with max events", func(ctx context.Context) {
+		maxEvents := uint64(100)
 		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
 			Name: "test",
-			Subjects: []string{
-				"test",
+			Source: &eventsv1alpha1.EnsureStreamRequest_Subjects_{
+				Subjects: &eventsv1alpha1.EnsureStreamRequest_Subjects{
+					Subjects: []string{"test"},
+				},
 			},
 			RetentionPolicy: &eventsv1alpha1.EnsureStreamRequest_RetentionPolicy{
-				MaxMessages: &maxMessages,
+				MaxEvents: &maxEvents,
 			},
 		})
 		Expect(err).ToNot(HaveOccurred())
@@ -88,8 +98,10 @@ var _ = Describe("Streams", func() {
 		maxBytes := uint64(1024)
 		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
 			Name: "test",
-			Subjects: []string{
-				"test",
+			Source: &eventsv1alpha1.EnsureStreamRequest_Subjects_{
+				Subjects: &eventsv1alpha1.EnsureStreamRequest_Subjects{
+					Subjects: []string{"test"},
+				},
 			},
 			RetentionPolicy: &eventsv1alpha1.EnsureStreamRequest_RetentionPolicy{
 				MaxBytes: &maxBytes,

@@ -10,6 +10,14 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
+type Headers struct {
+	// PublishedAt is the time the event was published by the producer.
+	PublishedAt    time.Time
+	IdempotencyKey *string
+	TraceParent    *string
+	TraceState     *string
+}
+
 // Event represents a single event from the event queue. It is received via
 // NATS and should be processed within a certain deadline, using Accept() or
 // Reject(shouldRetry) to acknowledge the event. If the deadline is exceeded,
@@ -17,6 +25,9 @@ import (
 type Event struct {
 	logger *zap.Logger
 	msg    *nats.Msg
+
+	// Subject is the subject the event was published to.
+	Subject string
 
 	// SubscriptionSeq is the sequence number of the event in the queue.
 	SubscriptionSeq uint64
@@ -27,8 +38,8 @@ type Event struct {
 	// resume from there on the next run.
 	StreamSeq uint64
 
-	// PublishedAt is the time the event was published by the producer.
-	PublishedAt time.Time
+	// Headers contains the headers of the event.
+	Headers *Headers
 
 	// Data is the protobuf message published by the producer.
 	Data *anypb.Any
@@ -47,14 +58,37 @@ func newEvent(logger *zap.Logger, msg nats.Msg) (*Event, error) {
 		return nil, errors.Wrap(err, "could not unmarshal message")
 	}
 
+	headers := &Headers{
+		PublishedAt: md.Timestamp,
+	}
+
 	// Get the published header
-	publishedTime := md.Timestamp
-	header := msg.Header.Get("Published-Time")
-	if header != "" {
-		publishedTime, err = time.Parse(time.RFC3339Nano, header)
+	publishTimeHeader := msg.Header.Get("WS-Published-Time")
+	if publishTimeHeader != "" {
+		publishedTime, err := time.Parse(time.RFC3339Nano, publishTimeHeader)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not parse header")
 		}
+
+		headers.PublishedAt = publishedTime
+	}
+
+	// Get the idempotency key header
+	idempotencyKeyHeader := msg.Header.Get("Nats-Msg-Id")
+	if idempotencyKeyHeader != "" {
+		headers.IdempotencyKey = &idempotencyKeyHeader
+	}
+
+	// Get the trace parent header
+	traceParentHeader := msg.Header.Get("WS-Trace-Parent")
+	if traceParentHeader != "" {
+		headers.TraceParent = &traceParentHeader
+	}
+
+	// Get the trace state header
+	traceStateHeader := msg.Header.Get("WS-Trace-State")
+	if traceStateHeader != "" {
+		headers.TraceState = &traceStateHeader
 	}
 
 	// Clear the data of the message
@@ -63,9 +97,10 @@ func newEvent(logger *zap.Logger, msg nats.Msg) (*Event, error) {
 	return &Event{
 		logger:          logger,
 		msg:             &msg,
+		Subject:         msg.Subject,
 		SubscriptionSeq: md.Sequence.Stream,
 		StreamSeq:       md.Sequence.Consumer,
-		PublishedAt:     publishedTime,
+		Headers:         headers,
 		Data:            data,
 	}, nil
 }

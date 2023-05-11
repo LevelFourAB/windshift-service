@@ -16,9 +16,13 @@ var _ = Describe("Subscriptions", func() {
 
 		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
 			Name: "test",
-			Subjects: []string{
-				"test",
-				"events.>",
+			Source: &eventsv1alpha1.EnsureStreamRequest_Subjects_{
+				Subjects: &eventsv1alpha1.EnsureStreamRequest_Subjects{
+					Subjects: []string{
+						"test",
+						"events.>",
+					},
+				},
 			},
 		})
 		Expect(err).ToNot(HaveOccurred())
@@ -26,7 +30,7 @@ var _ = Describe("Subscriptions", func() {
 
 	Describe("Ephemeral", func() {
 		It("can create a subscription", func(ctx context.Context) {
-			_, err := service.EnsureSubscription(ctx, &eventsv1alpha1.EnsureSubscriptionRequest{
+			_, err := service.EnsureConsumer(ctx, &eventsv1alpha1.EnsureConsumerRequest{
 				Stream: "test",
 				Subjects: []string{
 					"test",
@@ -39,7 +43,7 @@ var _ = Describe("Subscriptions", func() {
 	Describe("Durable", func() {
 		It("can update subject of subscription", func(ctx context.Context) {
 			subID := "test-sub"
-			_, err := service.EnsureSubscription(ctx, &eventsv1alpha1.EnsureSubscriptionRequest{
+			_, err := service.EnsureConsumer(ctx, &eventsv1alpha1.EnsureConsumerRequest{
 				Stream: "test",
 				Name:   &subID,
 				Subjects: []string{
@@ -48,7 +52,7 @@ var _ = Describe("Subscriptions", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			_, err = service.EnsureSubscription(ctx, &eventsv1alpha1.EnsureSubscriptionRequest{
+			_, err = service.EnsureConsumer(ctx, &eventsv1alpha1.EnsureConsumerRequest{
 				Stream: "test",
 				Name:   &subID,
 				Subjects: []string{

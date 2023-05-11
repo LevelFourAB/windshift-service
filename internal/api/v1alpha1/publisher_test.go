@@ -21,8 +21,10 @@ var _ = Describe("Publisher", func() {
 	It("can publish to a stream", func(ctx context.Context) {
 		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
 			Name: "test",
-			Subjects: []string{
-				"test",
+			Source: &eventsv1alpha1.EnsureStreamRequest_Subjects_{
+				Subjects: &eventsv1alpha1.EnsureStreamRequest_Subjects{
+					Subjects: []string{"test"},
+				},
 			},
 		})
 		Expect(err).ToNot(HaveOccurred())
@@ -51,8 +53,10 @@ var _ = Describe("Publisher", func() {
 	It("can publish with timestamp", func(ctx context.Context) {
 		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
 			Name: "test",
-			Subjects: []string{
-				"test",
+			Source: &eventsv1alpha1.EnsureStreamRequest_Subjects_{
+				Subjects: &eventsv1alpha1.EnsureStreamRequest_Subjects{
+					Subjects: []string{"test"},
+				},
 			},
 		})
 		Expect(err).ToNot(HaveOccurred())
@@ -61,9 +65,11 @@ var _ = Describe("Publisher", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		_, err = service.PublishEvent(ctx, &eventsv1alpha1.PublishEventRequest{
-			Subject:   "test",
-			Data:      data,
-			Timestamp: timestamppb.Now(),
+			Subject: "test",
+			Data:    data,
+			Headers: &eventsv1alpha1.Headers{
+				Timestamp: timestamppb.Now(),
+			},
 		})
 		Expect(err).ToNot(HaveOccurred())
 	})
@@ -71,8 +77,10 @@ var _ = Describe("Publisher", func() {
 	It("can publish with expected last id", func(ctx context.Context) {
 		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
 			Name: "test",
-			Subjects: []string{
-				"test",
+			Source: &eventsv1alpha1.EnsureStreamRequest_Subjects_{
+				Subjects: &eventsv1alpha1.EnsureStreamRequest_Subjects{
+					Subjects: []string{"test"},
+				},
 			},
 		})
 		Expect(err).ToNot(HaveOccurred())
@@ -92,8 +100,10 @@ var _ = Describe("Publisher", func() {
 	It("can publish with expected last id", func(ctx context.Context) {
 		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
 			Name: "test",
-			Subjects: []string{
-				"test",
+			Source: &eventsv1alpha1.EnsureStreamRequest_Subjects_{
+				Subjects: &eventsv1alpha1.EnsureStreamRequest_Subjects{
+					Subjects: []string{"test"},
+				},
 			},
 		})
 		Expect(err).ToNot(HaveOccurred())
@@ -120,8 +130,10 @@ var _ = Describe("Publisher", func() {
 	It("publish with wrong expected last id fails", func(ctx context.Context) {
 		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
 			Name: "test",
-			Subjects: []string{
-				"test",
+			Source: &eventsv1alpha1.EnsureStreamRequest_Subjects_{
+				Subjects: &eventsv1alpha1.EnsureStreamRequest_Subjects{
+					Subjects: []string{"test"},
+				},
 			},
 		})
 		Expect(err).ToNot(HaveOccurred())

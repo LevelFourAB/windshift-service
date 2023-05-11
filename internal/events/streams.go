@@ -8,19 +8,64 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
+type DiscardPolicy int
+
+const (
+	DiscardOld DiscardPolicy = iota
+	DiscardNew
+)
+
+type StorageType int
+
+const (
+	FileStorage StorageType = iota
+	MemoryStorage
+)
+
+type StreamSource struct {
+	// Name of the stream to mirror.
+	Name string
+	// Pointer is the position in the stream to start mirroring from.
+	Pointer *StreamPointer
+	// FilterSubjects is a list of subjects to filter messages from.
+	FilterSubjects []string
+}
+
 type StreamConfig struct {
-	// The name of the stream.
+	// Name of the stream.
 	Name string
 
-	// The subjects that will be published to this stream.
-	Subjects []string
-
-	// The maximum age of a message before it is discarded.
+	// MaxAge is the maximum age of a message before it is considered stale.
 	MaxAge time.Duration
-	// The maximum number of messages to retain in the stream.
+	// MaxMsgs is the maximum number of messages to retain in the stream.
 	MaxMsgs uint
-	// The maximum number of bytes to retain in the stream.
+	// MaxBytes is the maximum number of bytes to retain in the stream.
 	MaxBytes uint
+
+	// DiscardPolicy controls the policy for discarding messages when the
+	// stream reaches its maximum size.
+	DiscardPolicy DiscardPolicy
+	// DiscardNewPerSubject controls whether the discard policy applies to
+	// each subject individually, or to the stream as a whole. Only used when
+	// DiscardPolicy is set to DiscardPolicy.New.
+	DiscardNewPerSubject bool
+
+	// Subjects that the stream will receive events from.
+	Subjects []string
+	// Mirror makes it so this stream mirrors messages from another stream.
+	Mirror *StreamSource
+	// Sources is a list of streams to receive events from.
+	Sources []*StreamSource
+
+	// StorageType is the type of storage to use for the stream.
+	StorageType StorageType
+	// Replicas is the number of replicas to keep of the stream.
+	Replicas *uint
+
+	// DeduplicationWindow is the amount of time to keep idempotency keys.
+	DeduplicationWindow *time.Duration
+	// MaxEventSize is the maximum size of an event.
+	MaxEventSize *uint
 }
 
 type Stream struct{}
@@ -34,6 +79,30 @@ func EnsureStream(_ context.Context, js nats.JetStreamContext, config *StreamCon
 		MaxMsgs:  int64(config.MaxMsgs),
 		MaxBytes: int64(config.MaxBytes),
 		MaxAge:   config.MaxAge,
+
+		Discard:              nats.DiscardPolicy(config.DiscardPolicy),
+		DiscardNewPerSubject: config.DiscardNewPerSubject,
+
+		Storage: nats.StorageType(config.StorageType),
+
+		MaxConsumers: -1,
+	}
+
+	if config.Replicas != nil && *config.Replicas == 0 {
+		streamConfig.Replicas = int(*config.Replicas)
+	} else {
+		// TODO: We may want to have a config value in the Windshift server that sets the default value
+		streamConfig.Replicas = 1
+	}
+
+	if config.DeduplicationWindow != nil {
+		streamConfig.Duplicates = *config.DeduplicationWindow
+	} else {
+		streamConfig.Duplicates = 1 * time.Minute
+	}
+
+	if config.MaxEventSize != nil && *config.MaxEventSize > 0 {
+		streamConfig.MaxMsgSize = int32(*config.MaxEventSize)
 	}
 
 	_, err := js.StreamInfo(config.Name)

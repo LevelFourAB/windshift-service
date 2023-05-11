@@ -31,7 +31,7 @@ var _ = Describe("Subscriptions", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(errors.Is(err, nats.ErrConsumerNotFound)).To(BeTrue())
 
-			s, err := events.EnsureSubscription(ctx, js, &events.SubscriptionConfig{
+			s, err := events.EnsureConsumer(ctx, js, &events.ConsumerConfig{
 				Stream: "test",
 				Subjects: []string{
 					"test",
@@ -53,7 +53,7 @@ var _ = Describe("Subscriptions", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			s, err := events.EnsureSubscription(ctx, js, &events.SubscriptionConfig{
+			s, err := events.EnsureConsumer(ctx, js, &events.ConsumerConfig{
 				Stream: "test",
 				Subjects: []string{
 					"test",
@@ -64,7 +64,7 @@ var _ = Describe("Subscriptions", func() {
 			_, err = js.ConsumerInfo("test", s.ID)
 			Expect(err).ToNot(HaveOccurred())
 
-			s, err = events.EnsureSubscription(ctx, js, &events.SubscriptionConfig{
+			s, err = events.EnsureConsumer(ctx, js, &events.ConsumerConfig{
 				Stream: "test",
 				Subjects: []string{
 					"test.2",
@@ -92,7 +92,7 @@ var _ = Describe("Subscriptions", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(errors.Is(err, nats.ErrConsumerNotFound)).To(BeTrue())
 
-			s, err := events.EnsureSubscription(ctx, js, &events.SubscriptionConfig{
+			s, err := events.EnsureConsumer(ctx, js, &events.ConsumerConfig{
 				Stream: "test",
 				Name:   "test",
 				Subjects: []string{
@@ -115,7 +115,7 @@ var _ = Describe("Subscriptions", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			s, err := events.EnsureSubscription(ctx, js, &events.SubscriptionConfig{
+			s, err := events.EnsureConsumer(ctx, js, &events.ConsumerConfig{
 				Stream: "test",
 				Name:   "test",
 				Subjects: []string{
@@ -127,7 +127,7 @@ var _ = Describe("Subscriptions", func() {
 			_, err = js.ConsumerInfo("test", s.ID)
 			Expect(err).ToNot(HaveOccurred())
 
-			s, err = events.EnsureSubscription(ctx, js, &events.SubscriptionConfig{
+			s, err = events.EnsureConsumer(ctx, js, &events.ConsumerConfig{
 				Stream: "test",
 				Name:   "test",
 				Subjects: []string{

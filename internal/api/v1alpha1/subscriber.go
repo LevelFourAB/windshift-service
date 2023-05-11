@@ -71,9 +71,15 @@ func (e *EventsServiceServer) Events(server eventsv1alpha1.EventsService_EventsS
 			err = server.Send(&eventsv1alpha1.EventsResponse{
 				Response: &eventsv1alpha1.EventsResponse_Event{
 					Event: &eventsv1alpha1.Event{
-						Id:          event.StreamSeq,
-						Data:        event.Data,
-						PublishTime: timestamppb.New(event.PublishedAt),
+						Id:      event.StreamSeq,
+						Data:    event.Data,
+						Subject: event.Subject,
+						Headers: &eventsv1alpha1.Headers{
+							Timestamp:      timestamppb.New(event.Headers.PublishedAt),
+							IdempotencyKey: event.Headers.IdempotencyKey,
+							TraceParent:    event.Headers.TraceParent,
+							TraceState:     event.Headers.TraceState,
+						},
 					},
 				},
 			})
@@ -168,8 +174,8 @@ func (*EventsServiceServer) createQueueConfig(sub *eventsv1alpha1.EventsRequest_
 		Name:   sub.SubscriberId,
 	}
 
-	if sub.Concurrency != nil {
-		config.BatchSize = int(*sub.Concurrency)
+	if sub.BatchSize != nil {
+		config.BatchSize = int(*sub.BatchSize)
 	}
 
 	return config

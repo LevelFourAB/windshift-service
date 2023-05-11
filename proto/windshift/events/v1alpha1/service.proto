@@ -13,14 +13,11 @@ service EventsService {
 	// subscribe to these streams.
 	rpc EnsureStream(EnsureStreamRequest) returns (EnsureStreamResponse);
 
-	// Ensure that a certain subscription exists and is available for receiving
-	// events.
-	rpc EnsureSubscription(EnsureSubscriptionRequest)
-	    returns (EnsureSubscriptionResponse);
+	// Ensure that a certain consumer exists and can be subscribed to.
+	rpc EnsureConsumer(EnsureConsumerRequest) returns (EnsureConsumerResponse);
 
-	// Delete a subscription.
-	rpc DeleteSubscription(DeleteSubscriptionRequest)
-	    returns (DeleteSubscriptionResponse);
+	// Delete a consumer.
+	rpc DeleteConsumer(DeleteConsumerRequest) returns (DeleteConsumerResponse);
 
 	// Publish an event.
 	rpc PublishEvent(PublishEventRequest) returns (PublishEventResponse) {}
@@ -32,50 +29,114 @@ service EventsService {
 }
 
 message EnsureStreamRequest {
+	// Policy for how events in the stream should be retained.
 	message RetentionPolicy {
 		// Maximum age of events in the stream. Events older than this will be
 		// deleted.
 		optional google.protobuf.Duration max_age = 1;
 		// Maximum number of events in the stream. Events beyond this limit will
 		// be deleted.
-		optional uint64 max_messages = 2;
+		optional uint64 max_events = 2;
 		// Maximum size of events in the stream. Events beyond this limit will
 		// be deleted.
 		optional uint64 max_bytes = 3;
+
+		// Policy to use when discarding events the stream is full. Defaults
+		// to discarding old events.
+		optional DiscardPolicy discard_policy = 4;
+		// If discard policy is set to discard new events, settings this to
+		// true will discard new events per subject instead of globally.
+		optional bool discard_new_per_subject = 5;
 	}
 
-	// Name of the stream. Will be referenced by subscribers.
+	// Policy to use when discarding events when the stream is full.
+	enum DiscardPolicy {
+		DISCARD_POLICY_UNSPECIFIED = 0;
+		// Discard old events when the stream is full.
+		DISCARD_POLICY_OLD = 1;
+		// Discard new events when the stream is full.
+		DISCARD_POLICY_NEW = 2;
+	}
+
+	// List of subjects that will be collected into the stream.
+	message Subjects {
+		// List of subjects.
+		repeated string subjects = 1;
+	}
+
+	// A stream that can be mirrored into the stream.
+	message StreamSource {
+		// Stream to receive events from.
+		string name = 1;
+
+		// Optionally define where to start receiving events from.
+		optional StreamPointer pointer = 2;
+
+		// Optionally filter events by subject.
+		repeated string filter_subjects = 3;
+	}
+
+	// Multiple streams that can be mirrored into the stream.
+	message StreamSources {
+		// The streams to receive events from.
+		repeated StreamSource sources = 1;
+	}
+
+	// Type of storage to use for the stream.
+	enum StorageType {
+		// Unspecified storage type, will default to file based storage.
+		STORAGE_TYPE_UNSPECIFIED = 0;
+		// Use a file based storage.
+		STORAGE_TYPE_FILE = 1;
+		// Use a memory based storage.
+		STORAGE_TYPE_MEMORY = 2;
+	}
+
+	// Define how the stream should be stored.
+	message Storage {
+		// The type of storage to use for the stream.
+		optional StorageType type = 1;
+		// Number of replicas to use for the stream.
+		optional uint32 replicas = 2;
+	}
+
+	// Name of the stream. Will be referenced by consumers and subscribers.
 	string name = 1;
 	// Retention policy for the stream.
 	optional RetentionPolicy retention_policy = 2;
-	// Subjects that the stream will collect events for.
-	repeated string subjects = 3;
+
+	// Source of events for the stream.
+	oneof source {
+		// Subjects to collect events for.
+		Subjects subjects = 3;
+		// Stream to mirror. If set can not be changed.
+		StreamSource mirror = 4;
+		// Streams to receive events from.
+		StreamSources sources = 5;
+	}
+
+	// Configuration for how the stream should be stored.
+	optional Storage storage = 6;
+
+	// The amount of time duplicate detection should be enabled for. This is
+	// how long an idempotency key will be stored and checked for.
+	optional google.protobuf.Duration deduplication_window = 7;
+
+	// The maximum size of an event in bytes. If not provided, will default to
+	// 1MB.
+	optional uint32 max_event_size = 8;
 }
 
 message EnsureStreamResponse {}
 
-message EnsureSubscriptionRequest {
-	// A pointer to start receiving events from.
-	message StreamPointer {
-		oneof pointer {
-			// Receive all events currently available.
-			bool start = 1;
-			// Receive only future events.
-			bool end = 2;
-			// The time to start receiving events from.
-			google.protobuf.Timestamp time = 3;
-			// The id of the event to start receiving events from.
-			uint64 id = 5;
-		}
-	}
-
-	// The event stream to subscribe to.
+message EnsureConsumerRequest {
+	// The event stream to consume events from.
 	string stream = 1;
-	// The id of the subscription, should be unique to stream if provided.
-	// Providing one activates support for resumption and shared processing
-	// of events.
+	// The id of the consumer, should be unique to stream if provided,
+	// providing one creates a durable consumer activates support for
+	// resumption and shared processing of events.
 	//
-	// If not provided, the subscription will be anonymous and will not be
+	// If not provided, the consumer will be ephemeral and will not be
 	// able to resume or share processing of events.
 	optional string name = 2;
 	// The subjects to subscribe to.
@@ -93,33 +154,32 @@ message EnsureSubscriptionRequest {
 	optional google.protobuf.Duration timeout = 5;
 }
 
-message EnsureSubscriptionResponse {
+message EnsureConsumerResponse {
 	// The id of the subscription.
 	string id = 1;
 }
 
-message DeleteSubscriptionRequest {
-	// The id of the subscription to delete.
-	string id = 1;
+message DeleteConsumerRequest {
+	// The event stream to delete the consumer from.
+	string stream = 1;
+	// The id of the consumer to delete.
+	string id = 2;
 }
 
-message DeleteSubscriptionResponse {}
+message DeleteConsumerResponse {}
 
 // Request to publish an event.
 message PublishEventRequest {
 	// The subject of the event.
 	string subject = 1;
+	// Headers to use for the event.
+	optional Headers headers = 2;
 	// The event to publish.
-	google.protobuf.Any data = 2;
-	// Timestamp of the event, if not set, the server will use the current time.
-	optional google.protobuf.Timestamp timestamp = 3;
-	// Key used to prevent duplicate events from being stored if a retry is
-	// needed. Should be set to a unique value for each publish request of a
-	// specific event.
-	optional string idempotency_key = 4;
-	// The expected last id of the event subject. If the last id of the event
-	// subject is not equal to this value, the publish request will fail.
-	optional uint64 expected_last_id = 5;
+	google.protobuf.Any data = 3;
+	// The id of the last event that was published to the stream. Used for
+	// optimistic concurrency control, if the last event id does not match
+	// the current last event id, the publish will fail.
+	optional uint64 expected_last_id = 4;
 }
 
 // Response to publish an event.
@@ -143,9 +203,9 @@ message EventsRequest {
 		// The id of the subscriber, should be an id previously created using
 		// EnsureSubscription.
 		string subscriber_id = 2;
-		// Concurrency is used to set an approximate number of events that can
-		// be processed at the same time.
-		optional uint64 concurrency = 3;
+		// Batch size for fetching events, controls how many events are fetched
+		// at a time. If not provided will default to 5.
+		optional uint64 batch_size = 3;
 		// Control if the stream will automatically close when all events have
 		// been received. Setting this will check what the latest event is at
 		// the time of subscribing and close the stream when that event has
@@ -223,14 +283,43 @@ message EventsResponse {
 	}
 }
 
+// A pointer to start receiving events from.
+message StreamPointer {
+	oneof pointer {
+		// Receive all events currently available.
+		bool start = 1;
+		// Receive only future events.
+		bool end = 2;
+		// The time to start receiving events from.
+		google.protobuf.Timestamp time = 3;
+		// The id of the event to start receiving events from.
+		uint64 id = 5;
+	}
+}
+
 // An event that was published.
 message Event {
 	// Identifier of the event, used to accept, reject or ping the event. Can
 	// also be used to resume processing of events if using an ephemeral
 	// subscriber.
 	uint64 id = 1;
-	// When the event was published.
-	google.protobuf.Timestamp publish_time = 2;
+	// The subject of this event.
+	string subject = 2;
+	// Headers of the event.
+	Headers headers = 3;
 	// Data of the event.
-	google.protobuf.Any data = 3;
+	google.protobuf.Any data = 4;
+}
+
+message Headers {
+	// Timestamp of the event, if not set, the server will use the current time.
+	optional google.protobuf.Timestamp timestamp = 1;
+	// Key used to prevent duplicate events from being stored if a retry is
+	// needed. Should be set to a unique value for each publish request of a
+	// specific event.
+	optional string idempotency_key = 2;
+	// Parent trace id in the W3C trace context format.
+	optional string trace_parent = 3;
+	// Trace state in the W3C trace context format.
+	optional string trace_state = 4;
 }

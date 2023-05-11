@@ -6,8 +6,8 @@ import (
 	eventsv1alpha1 "windshift/service/internal/proto/windshift/events/v1alpha1"
 )
 
-func (e *EventsServiceServer) EnsureSubscription(ctx context.Context, req *eventsv1alpha1.EnsureSubscriptionRequest) (*eventsv1alpha1.EnsureSubscriptionResponse, error) {
-	config := &events.SubscriptionConfig{
+func (e *EventsServiceServer) EnsureConsumer(ctx context.Context, req *eventsv1alpha1.EnsureConsumerRequest) (*eventsv1alpha1.EnsureConsumerResponse, error) {
+	config := &events.ConsumerConfig{
 		Stream:   req.Stream,
 		Subjects: req.Subjects,
 	}
@@ -21,16 +21,7 @@ func (e *EventsServiceServer) EnsureSubscription(ctx context.Context, req *event
 	}
 
 	if req.Pointer != nil {
-		switch pointer := req.Pointer.Pointer.(type) {
-		case *eventsv1alpha1.EnsureSubscriptionRequest_StreamPointer_Time:
-			config.DeliverFromTime = pointer.Time.AsTime()
-		case *eventsv1alpha1.EnsureSubscriptionRequest_StreamPointer_Id:
-			config.DeliverFromID = pointer.Id
-		case *eventsv1alpha1.EnsureSubscriptionRequest_StreamPointer_Start:
-			config.DeliverFromFirst = true
-		case *eventsv1alpha1.EnsureSubscriptionRequest_StreamPointer_End:
-			config.DeliverFromFirst = false
-		}
+		config.Pointer = toStreamPointer(req.Pointer)
 	}
 
 	sub, err := e.events.EnsureSubscription(ctx, config)
@@ -38,7 +29,7 @@ func (e *EventsServiceServer) EnsureSubscription(ctx context.Context, req *event
 		return nil, err
 	}
 
-	return &eventsv1alpha1.EnsureSubscriptionResponse{
+	return &eventsv1alpha1.EnsureConsumerResponse{
 		Id: sub.ID,
 	}, nil
 }

@@ -34,8 +34,8 @@ func (n *Manager) EnsureStream(ctx context.Context, config *StreamConfig) (*Stre
 	return EnsureStream(ctx, n.jetStream, config)
 }
 
-func (n *Manager) EnsureSubscription(ctx context.Context, config *SubscriptionConfig) (*Subscription, error) {
-	return EnsureSubscription(ctx, n.jetStream, config)
+func (n *Manager) EnsureSubscription(ctx context.Context, config *ConsumerConfig) (*Consumer, error) {
+	return EnsureConsumer(ctx, n.jetStream, config)
 }
 
 // Publish an event.
