@@ -13,7 +13,7 @@ type QueueConfig struct {
 	Stream string
 	Name   string
 
-	Concurrency int
+	BatchSize int
 }
 
 type Queue struct {
@@ -28,7 +28,7 @@ type Queue struct {
 	subscription *nats.Subscription
 	channel      chan *Event
 
-	concurrency int
+	batchSize int
 }
 
 func newQueue(ctx context.Context, logger *zap.Logger, js nats.JetStreamContext, config *QueueConfig) (*Queue, error) {
@@ -65,11 +65,11 @@ func newQueue(ctx context.Context, logger *zap.Logger, js nats.JetStreamContext,
 
 		subscription: sub,
 		channel:      make(chan *Event),
-		concurrency:  5,
+		batchSize:    5,
 	}
 
-	if config.Concurrency > 0 {
-		q.concurrency = config.Concurrency
+	if config.BatchSize > 0 {
+		q.batchSize = config.BatchSize
 	}
 
 	go q.pump(ctx)
@@ -94,10 +94,8 @@ func (q *Queue) pump(ctx context.Context) {
 
 		subCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
 		defer cancel()
-		msgs, err := q.subscription.Fetch(q.concurrency, nats.Context(subCtx))
+		batch, err := q.subscription.FetchBatch(q.batchSize, nats.Context(subCtx))
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			continue
-		} else if errors.Is(err, nats.ErrTimeout) {
 			continue
 		} else if errors.Is(err, nats.ErrBadSubscription) {
 			q.logger.Debug("subscription closed, stopping")
@@ -114,13 +112,13 @@ func (q *Queue) pump(ctx context.Context) {
 		// being canceled. In this case, we reject the messages and stop the
 		// goroutine
 		if ctx.Err() != nil {
-			q.logger.Debug("Context done, stopping subscription and rejecting messages", zap.Int("messageCount", len(msgs)))
-			err := q.subscription.Unsubscribe()
+			q.logger.Debug("Context done, stopping subscription and rejecting messages")
+			err = q.subscription.Unsubscribe()
 			if err != nil {
 				q.logger.Warn("Failed to unsubscribe", zap.Error(err))
 			}
 
-			for _, msg := range msgs {
+			for msg := range batch.Messages() {
 				err = msg.Nak()
 				if err != nil {
 					q.logger.Warn("Failed to reject message", zap.Error(err))
@@ -132,15 +130,30 @@ func (q *Queue) pump(ctx context.Context) {
 			return
 		}
 
-		for _, msg := range msgs {
-			event, err := newEvent(q.logger, *msg)
-			if err != nil {
-				q.logger.Error("failed to create event", zap.Error(err))
+		for msg := range batch.Messages() {
+			event, err2 := newEvent(q.logger, *msg)
+			if err2 != nil {
+				q.logger.Error("failed to create event", zap.Error(err2))
 				continue
 			}
 
 			q.logger.Debug("Received event", zap.String("type", event.Data.TypeUrl))
 			q.channel <- event
+		}
+
+		if batch.Error() != nil {
+			// Handle the error if an error occurred while fetching messages in
+			// the batch
+			if errors.Is(err, nats.ErrBadSubscription) {
+				q.logger.Debug("subscription closed, stopping")
+				return
+			} else if errors.Is(err, nats.ErrConnectionClosed) {
+				q.logger.Debug("connection closed, stopping")
+				return
+			} else if err != nil {
+				q.logger.Error("failed to fetch message", zap.Error(err))
+				continue
+			}
 		}
 	}
 }

@@ -169,7 +169,7 @@ func (*EventsServiceServer) createQueueConfig(sub *eventsv1alpha1.EventsRequest_
 	}
 
 	if sub.Concurrency != nil {
-		config.Concurrency = int(*sub.Concurrency)
+		config.BatchSize = int(*sub.Concurrency)
 	}
 
 	return config
