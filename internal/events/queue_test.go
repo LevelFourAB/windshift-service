@@ -42,7 +42,7 @@ var _ = Describe("Queue", func() {
 
 	Describe("Ephemeral queues", func() {
 		It("can create a queue", func(ctx context.Context) {
-			sub, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			sub, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Subjects: []string{
 					"events.>",
@@ -73,7 +73,7 @@ var _ = Describe("Queue", func() {
 		})
 
 		It("can receive events", func(ctx context.Context) {
-			sub, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			sub, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Subjects: []string{
 					"events.>",
@@ -105,7 +105,7 @@ var _ = Describe("Queue", func() {
 		})
 
 		It("multiple subscribers receive same events", func(ctx context.Context) {
-			sub1, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			sub1, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Subjects: []string{
 					"events.>",
@@ -113,7 +113,7 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			sub2, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			sub2, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Subjects: []string{
 					"events.>",
@@ -167,7 +167,7 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			sub, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			sub, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Subjects: []string{
 					"events.>",
@@ -198,7 +198,7 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			sub, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			sub, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Subjects: []string{
 					"events.>",
@@ -227,7 +227,7 @@ var _ = Describe("Queue", func() {
 
 	Describe("Durable queues", func() {
 		It("can create a queue", func(ctx context.Context) {
-			_, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Name:   "test",
 				Subjects: []string{
@@ -245,7 +245,7 @@ var _ = Describe("Queue", func() {
 		})
 
 		It("can receive events", func(ctx context.Context) {
-			_, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Name:   "test",
 				Subjects: []string{
@@ -286,7 +286,7 @@ var _ = Describe("Queue", func() {
 		})
 
 		It("can receive events with multiple subscribers with same name", func(ctx context.Context) {
-			_, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Name:   "test",
 				Subjects: []string{
@@ -345,7 +345,7 @@ var _ = Describe("Queue", func() {
 		})
 
 		It("multiple subscribers with different names receive same events", func(ctx context.Context) {
-			_, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Name:   "test1",
 				Subjects: []string{
@@ -354,7 +354,7 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			_, err = manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			_, err = manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Name:   "test2",
 				Subjects: []string{
@@ -401,7 +401,7 @@ var _ = Describe("Queue", func() {
 		})
 
 		It("closing a queue stops receiving events", func(ctx context.Context) {
-			_, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Name:   "test",
 				Subjects: []string{
@@ -437,7 +437,7 @@ var _ = Describe("Queue", func() {
 		})
 
 		It("accepting event stops delivery", func(ctx context.Context) {
-			_, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Name:   "test",
 				Subjects: []string{
@@ -481,7 +481,7 @@ var _ = Describe("Queue", func() {
 		})
 
 		It("can accept event after discarding data", func(ctx context.Context) {
-			_, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Name:   "test",
 				Subjects: []string{
@@ -526,7 +526,7 @@ var _ = Describe("Queue", func() {
 		})
 
 		It("rejecting event redelivers it", func(ctx context.Context) {
-			_, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Name:   "test",
 				Subjects: []string{
@@ -578,7 +578,7 @@ var _ = Describe("Queue", func() {
 		})
 
 		It("can reject event after discarding data", func(ctx context.Context) {
-			_, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Name:   "test",
 				Subjects: []string{
@@ -626,7 +626,7 @@ var _ = Describe("Queue", func() {
 		})
 
 		It("rejecting event redelivers it to another queue", func(ctx context.Context) {
-			_, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Name:   "test",
 				Subjects: []string{
@@ -676,7 +676,7 @@ var _ = Describe("Queue", func() {
 		})
 
 		It("not processing event redelivers it", func(ctx context.Context) {
-			_, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Name:   "test",
 				Subjects: []string{
@@ -727,7 +727,7 @@ var _ = Describe("Queue", func() {
 		})
 
 		It("permanently rejecting event does not redeliver it", func(ctx context.Context) {
-			_, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Name:   "test",
 				Subjects: []string{
@@ -766,7 +766,7 @@ var _ = Describe("Queue", func() {
 		})
 
 		It("event gets permanently rejected after max deliveries is reached", func(ctx context.Context) {
-			_, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Name:   "test",
 				Subjects: []string{
@@ -819,7 +819,7 @@ var _ = Describe("Queue", func() {
 			ctx, span := tracer.Start(ctx, "test")
 			defer span.End()
 
-			sub, err := manager.EnsureSubscription(ctx, &events.ConsumerConfig{
+			sub, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Subjects: []string{
 					"events.>",

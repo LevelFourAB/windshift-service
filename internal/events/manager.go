@@ -41,7 +41,3 @@ func NewManager(
 func (m *Manager) EnsureStream(ctx context.Context, config *StreamConfig) (*Stream, error) {
 	return EnsureStream(ctx, m.jetStream, config)
 }
-
-func (m *Manager) EnsureSubscription(ctx context.Context, config *ConsumerConfig) (*Consumer, error) {
-	return EnsureConsumer(ctx, m.jetStream, config)
-}

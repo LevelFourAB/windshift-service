@@ -24,12 +24,12 @@ func (e *EventsServiceServer) EnsureConsumer(ctx context.Context, req *eventsv1a
 		config.Pointer = toStreamPointer(req.Pointer)
 	}
 
-	sub, err := e.events.EnsureSubscription(ctx, config)
+	consumer, err := e.events.EnsureConsumer(ctx, config)
 	if err != nil {
 		return nil, err
 	}
 
 	return &eventsv1alpha1.EnsureConsumerResponse{
-		Id: sub.ID,
+		Id: consumer.ID,
 	}, nil
 }
