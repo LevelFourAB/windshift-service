@@ -210,11 +210,6 @@ message EventsRequest {
 		// Batch size for fetching events, controls how many events are fetched
 		// at a time. If not provided will default to 5.
 		optional uint64 batch_size = 3;
-		// Control if the stream will automatically close when all events have
-		// been received. Setting this will check what the latest event is at
-		// the time of subscribing and close the stream when that event has
-		// been received.
-		optional bool auto_close = 4;
 	}
 
 	// Accept indicates that some events have been successfully processed.
