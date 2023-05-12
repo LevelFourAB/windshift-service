@@ -44,8 +44,8 @@ var _ = Describe("Events", func() {
 			err = client.Send(&eventsv1alpha1.EventsRequest{
 				Request: &eventsv1alpha1.EventsRequest_Subscribe_{
 					Subscribe: &eventsv1alpha1.EventsRequest_Subscribe{
-						Stream:       "events",
-						SubscriberId: s.Id,
+						Stream:   "events",
+						Consumer: s.Id,
 					},
 				},
 			})
@@ -76,8 +76,8 @@ var _ = Describe("Events", func() {
 			err = client.Send(&eventsv1alpha1.EventsRequest{
 				Request: &eventsv1alpha1.EventsRequest_Subscribe_{
 					Subscribe: &eventsv1alpha1.EventsRequest_Subscribe{
-						Stream:       "events",
-						SubscriberId: s.Id,
+						Stream:   "events",
+						Consumer: s.Id,
 					},
 				},
 			})
@@ -138,8 +138,8 @@ var _ = Describe("Events", func() {
 			err = client.Send(&eventsv1alpha1.EventsRequest{
 				Request: &eventsv1alpha1.EventsRequest_Subscribe_{
 					Subscribe: &eventsv1alpha1.EventsRequest_Subscribe{
-						Stream:       "events",
-						SubscriberId: s.Id,
+						Stream:   "events",
+						Consumer: s.Id,
 					},
 				},
 			})

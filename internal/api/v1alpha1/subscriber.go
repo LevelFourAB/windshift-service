@@ -179,7 +179,7 @@ func (e *EventsServiceServer) Events(server eventsv1alpha1.EventsService_EventsS
 func (*EventsServiceServer) createQueueConfig(sub *eventsv1alpha1.EventsRequest_Subscribe) *events.QueueConfig {
 	config := &events.QueueConfig{
 		Stream: sub.Stream,
-		Name:   sub.SubscriberId,
+		Name:   sub.Consumer,
 	}
 
 	if sub.BatchSize != nil {

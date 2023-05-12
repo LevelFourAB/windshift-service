@@ -204,9 +204,9 @@ message EventsRequest {
 	message Subscribe {
 		// The id of the stream to subscribe to.
 		string stream = 1;
-		// The id of the subscriber, should be an id previously created using
-		// EnsureSubscription.
-		string subscriber_id = 2;
+		// The id of the consumer, should be an id previously created using
+		// EnsureConsumer.
+		string consumer = 2;
 		// Batch size for fetching events, controls how many events are fetched
 		// at a time. If not provided will default to 5.
 		optional uint64 batch_size = 3;
