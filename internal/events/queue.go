@@ -114,74 +114,16 @@ func (q *Queue) pump(ctx context.Context) {
 			continue
 		}
 
-		// In some cases we may have received some events while the context was
-		// being canceled. In this case, we reject the messages and stop the
-		// goroutine
-		if ctx.Err() != nil {
-			q.logger.Debug("Context done, stopping subscription and rejecting messages")
-			err = q.subscription.Unsubscribe()
-			if err != nil {
-				q.logger.Warn("Failed to unsubscribe", zap.Error(err))
-			}
-
-			for msg := range batch.Messages() {
-				err = msg.Nak()
-				if err != nil {
-					q.logger.Warn("Failed to reject message", zap.Error(err))
-				}
-			}
-
-			close(q.channel)
-			q.shutdownSignal <- struct{}{}
-			return
-		}
-
 		for msg := range batch.Messages() {
-			msgCtx := q.manager.w3cPropagator.Extract(ctx, eventTracingHeaders{
-				headers: &msg.Header,
-			})
-			msgCtx, span := q.manager.tracer.Start(
-				msgCtx,
-				msg.Subject+" receive", trace.WithSpanKind(trace.SpanKindConsumer),
-				trace.WithAttributes(
-					semconv.MessagingSystem("nats"),
-					semconv.MessagingOperationReceive,
-					semconv.MessagingDestinationName(msg.Subject),
-				),
-			)
-
-			// Get the metadata for the message
-			md, err2 := msg.Metadata()
+			event, err2 := q.createEvent(ctx, msg)
 			if err2 != nil {
-				q.logger.Error("failed to get message metadata", zap.Error(err2))
-				span.RecordError(err2)
-				span.SetStatus(codes.Error, "failed to get message metadata")
-				span.End()
-				continue
-			}
-
-			// Set the message ID as an attribute
-			span.SetAttributes(semconv.MessagingMessageID(fmt.Sprintf("%d", md.Sequence.Stream)))
-
-			// Create the event
-			event, err2 := newEvent(msgCtx, span, q.logger, *msg, md)
-			if err2 != nil {
-				q.logger.Error("failed to create event", zap.Error(err2))
-				span.RecordError(err2)
-
-				err2 = msg.Term()
-				if err2 != nil {
-					q.logger.Warn("failed to terminate message", zap.Error(err2))
-					span.RecordError(err2)
-				}
-
-				span.SetStatus(codes.Error, "failed to create event")
-				span.End()
 				continue
 			}
 
 			q.logger.Debug("Received event", zap.String("type", event.Data.TypeUrl))
-			q.channel <- event
+			if ctx.Err() == nil {
+				q.channel <- event
+			}
 		}
 
 		if batch.Error() != nil {
@@ -199,6 +141,65 @@ func (q *Queue) pump(ctx context.Context) {
 			}
 		}
 	}
+}
+
+// createEvent takes a NATS message, extracts the tracing information and
+// creates an Event that can be passed on to the subscriber.
+func (q *Queue) createEvent(ctx context.Context, msg *nats.Msg) (*Event, error) {
+	// We may have tracing information stored in the event headers, so we
+	// extract them and create our own span indicating that we received the
+	// message.
+	//
+	// Unlike for most tracing the span is only ended in this function if an
+	// error occurs, otherwise it is passed into the event and ended when the
+	// event is consumed.
+	msgCtx := q.manager.w3cPropagator.Extract(ctx, eventTracingHeaders{
+		headers: &msg.Header,
+	})
+	msgCtx, span := q.manager.tracer.Start(
+		msgCtx,
+		msg.Subject+" receive", trace.WithSpanKind(trace.SpanKindConsumer),
+		trace.WithAttributes(
+			semconv.MessagingSystem("nats"),
+			semconv.MessagingOperationReceive,
+			semconv.MessagingDestinationName(msg.Subject),
+		),
+	)
+
+	md, err := msg.Metadata()
+	if err != nil {
+		// Record the error and end the tracing as the span is not passed on
+		q.logger.Error("failed to get message metadata", zap.Error(err))
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to get message metadata")
+		span.End()
+		return nil, err
+	}
+
+	// Set the message ID as an attribute
+	span.SetAttributes(semconv.MessagingMessageID(fmt.Sprintf("%d", md.Sequence.Stream)))
+
+	event, err := newEvent(msgCtx, span, q.logger, *msg, md)
+	if err != nil {
+		q.logger.Error("failed to create event", zap.Error(err))
+		span.RecordError(err)
+
+		// If we fail to parse the event data it is most likely an invalid
+		// Protobuf message. In this case we terminate the message so it is not
+		// redelivered
+		err2 := msg.Term()
+		if err2 != nil {
+			q.logger.Warn("failed to terminate message", zap.Error(err2))
+			span.RecordError(err2)
+		}
+
+		// Record the error and end the tracing as the span is not passed on
+		span.SetStatus(codes.Error, "failed to create event")
+		span.End()
+		return nil, err
+	}
+
+	return event, nil
 }
 
 func (q *Queue) Close() error {
