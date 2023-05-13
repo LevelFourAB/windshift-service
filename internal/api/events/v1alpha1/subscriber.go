@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"time"
 	"windshift/service/internal/events"
 
 	eventsv1alpha1 "windshift/service/internal/proto/windshift/events/v1alpha1"
@@ -60,15 +61,26 @@ func (e *EventsServiceServer) Consume(server eventsv1alpha1.EventsService_Consum
 		}
 	}()
 
-	eventMap := make(map[uint64]*events.Event)
+	eventMap := newEventTracker()
+
+	timeout := queue.Timeout
+	lastGC := time.Now()
 
 	for {
+		// Check if it's time to GC the event map
+		if time.Since(lastGC) > timeout {
+			eventMap.RemoveOlderThan(timeout)
+			lastGC = time.Now()
+		}
+
 		select {
+		case <-time.After(timeout):
+			// If the timeout is reached continue the loop to do a periodic GC
+			continue
 		case <-ctx.Done():
 			return nil
 		case event := <-queue.Events():
-			eventMap[event.StreamSeq] = event
-			// TODO: Keep track of the expiry of events
+			eventMap.Add(event)
 
 			// Create the common headers
 			headers := &eventsv1alpha1.Headers{
@@ -123,7 +135,7 @@ func (e *EventsServiceServer) Consume(server eventsv1alpha1.EventsService_Consum
 
 func (e *EventsServiceServer) handleAccept(
 	server eventsv1alpha1.EventsService_ConsumeServer,
-	eventMap map[uint64]*events.Event,
+	eventMap eventTracker,
 	r *eventsv1alpha1.ConsumeRequest_Accept_,
 ) error {
 	ids := r.Accept.Ids
@@ -132,20 +144,20 @@ func (e *EventsServiceServer) handleAccept(
 	invalidIds := make([]uint64, 0, len(ids))
 	temporaryErrors := make([]uint64, 0, len(ids))
 	for _, id := range ids {
-		event, ok := eventMap[id]
-		if ok {
+		event := eventMap.Get(id)
+		if event != nil {
 			err := event.Accept()
 			if err != nil {
 				if errors.Is(err, nats.ErrInvalidJSAck) || errors.Is(err, nats.ErrMsgAlreadyAckd) {
 					invalidIds = append(invalidIds, id)
-					delete(eventMap, id)
+					eventMap.Remove(id)
 				} else {
 					e.logger.Warn("Could not reject event", zap.Error(err))
 					temporaryErrors = append(temporaryErrors, id)
 				}
 			} else {
 				processedIds = append(processedIds, id)
-				delete(eventMap, id)
+				eventMap.Remove(id)
 			}
 		} else {
 			invalidIds = append(invalidIds, id)
@@ -170,7 +182,7 @@ func (e *EventsServiceServer) handleAccept(
 
 func (e *EventsServiceServer) handleReject(
 	server eventsv1alpha1.EventsService_ConsumeServer,
-	eventMap map[uint64]*events.Event,
+	eventMap eventTracker,
 	r *eventsv1alpha1.ConsumeRequest_Reject_,
 ) error {
 	ids := r.Reject.Ids
@@ -181,8 +193,8 @@ func (e *EventsServiceServer) handleReject(
 	invalidIds := make([]uint64, 0, len(ids))
 	temporaryErrors := make([]uint64, 0, len(ids))
 	for _, id := range ids {
-		event, ok := eventMap[id]
-		if ok {
+		event := eventMap.Get(id)
+		if event != nil {
 			var err error
 			if permanently != nil && *permanently {
 				err = event.RejectPermanently()
@@ -196,12 +208,13 @@ func (e *EventsServiceServer) handleReject(
 				e.logger.Warn("Could not reject event", zap.Error(err))
 				if errors.Is(err, nats.ErrInvalidJSAck) || errors.Is(err, nats.ErrMsgAlreadyAckd) {
 					invalidIds = append(invalidIds, id)
-					delete(eventMap, id)
+					eventMap.Remove(id)
 				} else {
 					temporaryErrors = append(temporaryErrors, id)
 				}
 			} else {
 				processedIds = append(processedIds, id)
+				eventMap.Remove(id)
 			}
 		} else {
 			invalidIds = append(invalidIds, id)
@@ -226,7 +239,7 @@ func (e *EventsServiceServer) handleReject(
 
 func (e *EventsServiceServer) handlePing(
 	server eventsv1alpha1.EventsService_ConsumeServer,
-	eventMap map[uint64]*events.Event,
+	eventMap eventTracker,
 	r *eventsv1alpha1.ConsumeRequest_Ping_,
 ) error {
 	ids := r.Ping.Ids
@@ -235,14 +248,13 @@ func (e *EventsServiceServer) handlePing(
 	invalidIds := make([]uint64, 0, len(ids))
 	temporaryErrors := make([]uint64, 0, len(ids))
 	for _, id := range ids {
-		event, ok := eventMap[id]
-		if ok {
+		event := eventMap.Get(id)
+		if event != nil {
 			err := event.Ping()
 			if err != nil {
 				e.logger.Warn("Could not ping event", zap.Error(err))
 				if errors.Is(err, nats.ErrInvalidMsg) {
 					invalidIds = append(invalidIds, id)
-					delete(eventMap, id)
 				} else {
 					temporaryErrors = append(temporaryErrors, id)
 				}

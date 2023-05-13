@@ -32,6 +32,8 @@ type Queue struct {
 	channel      chan *Event
 
 	batchSize int
+
+	Timeout time.Duration
 }
 
 func (m *Manager) Subscribe(ctx context.Context, config *QueueConfig) (*Queue, error) {
@@ -72,6 +74,8 @@ func (m *Manager) Subscribe(ctx context.Context, config *QueueConfig) (*Queue, e
 		subscription: sub,
 		channel:      make(chan *Event),
 		batchSize:    5,
+
+		Timeout: ci.Config.AckWait,
 	}
 
 	if config.BatchSize > 0 {
