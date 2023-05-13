@@ -1,3 +1,9 @@
+issues:
+  exclude-rules:
+    - path: (.+)_test.go
+      linters:
+        - dupl
+
 linters-settings:
   govet:
     check-shadowing: true
