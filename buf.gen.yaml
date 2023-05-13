@@ -4,9 +4,14 @@ managed:
   go_package_prefix:
     default: "windshift/service/internal/proto"
 plugins:
-  - name: "go"
-    out: "internal/proto"
-    opt: "paths=source_relative"
-  - name: "go-grpc"
-    out: "internal/proto"
-    opt: "paths=source_relative"
+  # renovate: datasource=github-releases depName=protocolbuffers/protobuf-go
+  - plugin: buf.build/protocolbuffers/go:v1.30.0
+    out: internal/proto
+    opt:
+      - paths=source_relative
+
+  # renovate: datasource=github-releases depName=planetscale/vtprotobuf
+  - plugin: buf.build/community/planetscale-vtprotobuf:v0.4.0
+    out: internal/proto
+    opt:
+      - paths=source_relative,features=marshal+unmarshal+size+pool+grpc
