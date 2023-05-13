@@ -89,7 +89,7 @@ func (m *Manager) Subscribe(ctx context.Context, config *QueueConfig) (*Queue, e
 // pump is a helper function that will pump messages from the NATS subscription
 // into the channel.
 func (q *Queue) pump(ctx context.Context) {
-	batchSizer := newBatchSizer(1, uint(q.maxPendingMessages))
+	batchSizer := NewBatchSizer(1, uint(q.maxPendingMessages))
 	limiter := NewLimiter(q.maxPendingMessages)
 
 	for {

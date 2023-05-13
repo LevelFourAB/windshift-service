@@ -2,10 +2,12 @@ package events
 
 import "time"
 
-// batchSizer is used to dynamically determine the number of events to pull
+// BatchSizer is used to dynamically determine the number of events to pull
 // from NATS at once. The idea is to create a continuous flow of events that
 // are sent to the client, while pulling as few events from NATS as possible.
-type batchSizer struct {
+type BatchSizer struct {
+	Interval time.Duration
+
 	// maxBatchSize is the maximum number of events that can be pulled from the
 	// event tracker at once.
 	maxBatchSize int
@@ -26,22 +28,24 @@ type batchSizer struct {
 	shouldCalculate bool
 }
 
-// newBatchSizer creates a new batch sizer.
-func newBatchSizer(minBatchSize uint, maxBatchSize uint) *batchSizer {
-	return &batchSizer{
-		minBatchSize: int(minBatchSize),
-		maxBatchSize: int(maxBatchSize),
-		batchSize:    int(minBatchSize),
+// NewBatchSizer creates a new batch sizer.
+func NewBatchSizer(minBatchSize uint, maxBatchSize uint) *BatchSizer {
+	return &BatchSizer{
+		Interval:          1 * time.Second,
+		minBatchSize:      int(minBatchSize),
+		maxBatchSize:      int(maxBatchSize),
+		batchSize:         int(minBatchSize),
+		lastBatchSizeTime: time.Now(),
 	}
 }
 
 // Processed indicates that at least one event was processed in the last batch.
-func (b *batchSizer) Processed() {
+func (b *BatchSizer) Processed() {
 	b.shouldCalculate = true
 }
 
 // Get the next batch size.
-func (b *batchSizer) Get(maxBatchSize int) int {
+func (b *BatchSizer) Get(maxBatchSize int) int {
 	if !b.shouldCalculate {
 		return b.batchSize
 	}
@@ -49,8 +53,8 @@ func (b *batchSizer) Get(maxBatchSize int) int {
 	// Reset the shouldCalculate flag.
 	b.shouldCalculate = false
 
-	if time.Since(b.lastBatchSizeTime) > time.Second {
-		// If the last batch size was pulled more than 1 second ago, reduce the
+	if time.Since(b.lastBatchSizeTime) > b.Interval {
+		// If the last batch size was pulled more than the interval, reduce the
 		// batch size a little bit. If the batch size is already at the minimum,
 		// do nothing.
 		amountToReduce := int(float64(b.batchSize) * 0.1)
