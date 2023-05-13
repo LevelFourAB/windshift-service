@@ -15,7 +15,7 @@ var _ = Describe("Publisher", func() {
 	var service eventsv1alpha1.EventsServiceClient
 
 	BeforeEach(func() {
-		service = GetClient()
+		service, _ = GetClient()
 	})
 
 	It("can publish to a stream", func(ctx context.Context) {

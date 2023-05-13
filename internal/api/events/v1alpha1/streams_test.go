@@ -14,7 +14,7 @@ var _ = Describe("Streams", func() {
 	var service eventsv1alpha1.EventsServiceClient
 
 	BeforeEach(func() {
-		service = GetClient()
+		service, _ = GetClient()
 	})
 
 	It("can create a stream", func(ctx context.Context) {

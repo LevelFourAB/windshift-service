@@ -2,7 +2,7 @@ package main
 
 import (
 	"windshift/service/internal/api"
-	"windshift/service/internal/api/v1alpha1"
+	eventsv1alpha1 "windshift/service/internal/api/events/v1alpha1"
 	"windshift/service/internal/events"
 	"windshift/service/internal/nats"
 
@@ -16,6 +16,6 @@ func main() {
 		nats.Module,
 		events.Module,
 		api.Module,
-		v1alpha1.Module,
+		eventsv1alpha1.Module,
 	).Run()
 }

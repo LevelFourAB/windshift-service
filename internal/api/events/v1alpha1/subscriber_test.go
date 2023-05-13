@@ -14,7 +14,7 @@ var _ = Describe("Events", func() {
 	var service eventsv1alpha1.EventsServiceClient
 
 	BeforeEach(func(ctx context.Context) {
-		service = GetClient()
+		service, _ = GetClient()
 
 		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
 			Name: "events",

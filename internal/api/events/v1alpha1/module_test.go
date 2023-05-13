@@ -5,7 +5,7 @@ import (
 	"net"
 	"os"
 	"time"
-	"windshift/service/internal/api/v1alpha1"
+	"windshift/service/internal/api/events/v1alpha1"
 	"windshift/service/internal/events"
 	eventsv1alpha1 "windshift/service/internal/proto/windshift/events/v1alpha1"
 
@@ -26,16 +26,17 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-func GetClient() eventsv1alpha1.EventsServiceClient {
+func GetClient() (eventsv1alpha1.EventsServiceClient, nats.JetStreamContext) {
 	t := GinkgoT()
 	var conn *grpc.ClientConn
+	var nats *nats.Conn
 	fx := fxtest.New(
 		t,
 		test.Module(t),
 		events.Module,
 		v1alpha1.Module,
 		TestModule,
-		fx.Populate(&conn),
+		fx.Populate(&conn, &nats),
 	)
 	fx.RequireStart()
 
@@ -43,7 +44,10 @@ func GetClient() eventsv1alpha1.EventsServiceClient {
 		fx.RequireStop()
 	})
 
-	return eventsv1alpha1.NewEventsServiceClient(conn)
+	js, err := nats.JetStream()
+	Expect(err).ToNot(HaveOccurred())
+
+	return eventsv1alpha1.NewEventsServiceClient(conn), js
 }
 
 var TestModule = fx.Module(
