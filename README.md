@@ -6,17 +6,17 @@ building distributed event-driven systems.
 
 ## Features
 
-- gRPC API for managing event streams, consumers and publishing events
-- Event handling
-  - Stream management, declare streams and bind subjects to them, with
+- 🔗 gRPC API for managing event streams, consumers and publishing events
+- 📨 Event handling
+  - 🌊 Stream management, declare streams and bind subjects to them, with
     configurable retention and limits
-  - Publish events to subjects, with idempotency and OpenTelemetry tracing
-  - Durable consumers with distributed processing
-  - Ephemeral consumers for one of event processing
-  - Automatic redelivery of failed events, events can be accepted or rejected
+  - 📤 Publish events to subjects, with idempotency and OpenTelemetry tracing
+  - 📥 Durable consumers with distributed processing
+  - 🕒 Ephemeral consumers for one of event processing
+  - 🔄 Automatic redelivery of failed events, events can be accepted or rejected
     by consumers
-  - Ability to ping events if processing takes a long time
-- Observability via OpenTelemetry tracing
+  - 🔔 Ability to ping events if processing takes a long time
+- 🔍 Observability via OpenTelemetry tracing
 
 ### Planned features
 
