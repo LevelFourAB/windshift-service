@@ -61,6 +61,10 @@ func (b *batchSizer) Get(maxBatchSize int) int {
 		if b.batchSize-amountToReduce > b.minBatchSize {
 			// There is room to reduce the batch size.
 			b.batchSize -= amountToReduce
+		} else {
+			// We are at the minimum batch size, set the batch size to the
+			// minimum.
+			b.batchSize = b.minBatchSize
 		}
 	} else if b.batchSize < b.maxBatchSize {
 		// If the last batch size was pulled less than 1 second ago and we are
@@ -73,6 +77,10 @@ func (b *batchSizer) Get(maxBatchSize int) int {
 		if b.batchSize+amountToIncrease < b.maxBatchSize {
 			// There is room to increase the batch size.
 			b.batchSize += amountToIncrease
+		} else {
+			// We are at the maximum batch size, set the batch size to the
+			// maximum.
+			b.batchSize = b.maxBatchSize
 		}
 	}
 
