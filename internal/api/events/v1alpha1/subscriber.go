@@ -288,8 +288,8 @@ func (*EventsServiceServer) createQueueConfig(sub *eventsv1alpha1.ConsumeRequest
 		Name:   sub.Consumer,
 	}
 
-	if sub.BatchSize != nil {
-		config.BatchSize = int(*sub.BatchSize)
+	if sub.MaxPendingEvents != nil {
+		config.MaxPendingMessages = uint(*sub.MaxPendingEvents)
 	}
 
 	return config

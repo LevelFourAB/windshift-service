@@ -836,6 +836,162 @@ var _ = Describe("Queue", func() {
 			case <-time.After(200 * time.Millisecond):
 			}
 		})
+
+		It("can limit received events", func(ctx context.Context) {
+			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
+				Stream: "events",
+				Name:   "test",
+				Subjects: []string{
+					"events.>",
+				},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+				Stream:             "events",
+				Name:               "test",
+				MaxPendingMessages: 1,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			defer queue.Close()
+
+			// Publish a few events
+			for i := 0; i < 3; i++ {
+				msg, err := anypb.New(&emptypb.Empty{})
+				Expect(err).ToNot(HaveOccurred())
+				_, err = manager.Publish(ctx, &events.PublishConfig{
+					Subject: "events.test",
+					Data:    msg,
+				})
+				Expect(err).ToNot(HaveOccurred())
+			}
+
+			// Receive an event
+			select {
+			case <-queue.Events():
+			case <-time.After(100 * time.Millisecond):
+				Fail("no event received")
+			}
+
+			// Try to receive another event
+			select {
+			case <-queue.Events():
+				Fail("event received again")
+			case <-time.After(100 * time.Millisecond):
+			}
+		})
+
+		It("can limit received events and continue when accepted", func(ctx context.Context) {
+			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
+				Stream: "events",
+				Name:   "test",
+				Subjects: []string{
+					"events.>",
+				},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+				Stream:             "events",
+				Name:               "test",
+				MaxPendingMessages: 1,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			defer queue.Close()
+
+			// Publish a few events
+			for i := 0; i < 3; i++ {
+				msg, err2 := anypb.New(&emptypb.Empty{})
+				Expect(err2).ToNot(HaveOccurred())
+				_, err2 = manager.Publish(ctx, &events.PublishConfig{
+					Subject: "events.test",
+					Data:    msg,
+				})
+				Expect(err2).ToNot(HaveOccurred())
+			}
+
+			// Receive an event
+			var event *events.Event
+			select {
+			case event = <-queue.Events():
+			case <-time.After(100 * time.Millisecond):
+				Fail("no event received")
+			}
+
+			// Make sure that we are not receiving any more events
+			select {
+			case <-queue.Events():
+				Fail("another event received")
+			case <-time.After(50 * time.Millisecond):
+			}
+
+			// Reject the event
+			err = event.Accept()
+			Expect(err).ToNot(HaveOccurred())
+
+			// Receive another event
+			select {
+			case <-queue.Events():
+			case <-time.After(100 * time.Millisecond):
+				Fail("no event received")
+			}
+		})
+
+		It("can limit received events and continue when rejected", func(ctx context.Context) {
+			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
+				Stream: "events",
+				Name:   "test",
+				Subjects: []string{
+					"events.>",
+				},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+				Stream:             "events",
+				Name:               "test",
+				MaxPendingMessages: 1,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			defer queue.Close()
+
+			// Publish a few events
+			for i := 0; i < 3; i++ {
+				msg, err2 := anypb.New(&emptypb.Empty{})
+				Expect(err2).ToNot(HaveOccurred())
+				_, err2 = manager.Publish(ctx, &events.PublishConfig{
+					Subject: "events.test",
+					Data:    msg,
+				})
+				Expect(err2).ToNot(HaveOccurred())
+			}
+
+			// Receive an event
+			var event *events.Event
+			select {
+			case event = <-queue.Events():
+			case <-time.After(100 * time.Millisecond):
+				Fail("no event received")
+			}
+
+			// Make sure that we are not receiving any more events
+			select {
+			case <-queue.Events():
+				Fail("another event received")
+			case <-time.After(50 * time.Millisecond):
+			}
+
+			// Reject the event
+			err = event.Reject()
+			Expect(err).ToNot(HaveOccurred())
+
+			// Receive another event
+			select {
+			case <-queue.Events():
+			case <-time.After(100 * time.Millisecond):
+				Fail("no event received")
+			}
+		})
 	})
 
 	Describe("OpenTelemetry", func() {

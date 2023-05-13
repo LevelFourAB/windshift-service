@@ -1144,8 +1144,8 @@ func (m *ConsumeRequest_Subscribe) MarshalToSizedBufferVT(dAtA []byte) (int, err
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if m.BatchSize != nil {
-		i = encodeVarint(dAtA, i, uint64(*m.BatchSize))
+	if m.MaxPendingEvents != nil {
+		i = encodeVarint(dAtA, i, uint64(*m.MaxPendingEvents))
 		i--
 		dAtA[i] = 0x18
 	}
@@ -2546,8 +2546,8 @@ func (m *ConsumeRequest_Subscribe) SizeVT() (n int) {
 	if l > 0 {
 		n += 1 + l + sov(uint64(l))
 	}
-	if m.BatchSize != nil {
-		n += 1 + sov(uint64(*m.BatchSize))
+	if m.MaxPendingEvents != nil {
+		n += 1 + sov(uint64(*m.MaxPendingEvents))
 	}
 	n += len(m.unknownFields)
 	return n
@@ -4846,7 +4846,7 @@ func (m *ConsumeRequest_Subscribe) UnmarshalVT(dAtA []byte) error {
 			iNdEx = postIndex
 		case 3:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field BatchSize", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxPendingEvents", wireType)
 			}
 			var v uint64
 			for shift := uint(0); ; shift += 7 {
@@ -4863,7 +4863,7 @@ func (m *ConsumeRequest_Subscribe) UnmarshalVT(dAtA []byte) error {
 					break
 				}
 			}
-			m.BatchSize = &v
+			m.MaxPendingEvents = &v
 		default:
 			iNdEx = preIndex
 			skippy, err := skip(dAtA[iNdEx:])

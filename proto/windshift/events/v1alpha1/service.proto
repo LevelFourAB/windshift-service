@@ -210,9 +210,9 @@ message ConsumeRequest {
 		// The id of the consumer, should be an id previously created using
 		// EnsureConsumer.
 		string consumer = 2;
-		// Batch size for fetching events, controls how many events are fetched
-		// at a time. If not provided will default to 5.
-		optional uint64 batch_size = 3;
+		// Maximum number of events to receive at once. If not provided, the
+		// default of 100 will be used.
+		optional uint64 max_pending_events = 3;
 	}
 
 	// Accept indicates that some events have been successfully processed.
