@@ -22,10 +22,10 @@ service EventsService {
 	// Publish an event.
 	rpc PublishEvent(PublishEventRequest) returns (PublishEventResponse) {}
 
-	// Events subscribes to events and returns them as they are published. The
+	// Consume subscribes to events and returns them as they are published. The
 	// stream is bidirectional, so the client can accept/reject events as they
 	// are received.
-	rpc Events(stream EventsRequest) returns (stream EventsResponse) {}
+	rpc Consume(stream ConsumeRequest) returns (stream ConsumeResponse) {}
 }
 
 message EnsureStreamRequest {
@@ -202,7 +202,7 @@ message PublishEventResponse {
 // Events should be either accepted or rejected, otherwise they will be resent
 // after a timeout. If processing takes of an event takes a while pings should
 // be sent to indicate that the event is still being processed.
-message EventsRequest {
+message ConsumeRequest {
 	// Subscribe to events, must be sent as the first message in the stream.
 	message Subscribe {
 		// The id of the stream to subscribe to.
@@ -253,7 +253,7 @@ message EventsRequest {
 	}
 }
 
-message EventsResponse {
+message ConsumeResponse {
 	// Confirmation that the client has subscribed to events.
 	message Subscribed {}
 
