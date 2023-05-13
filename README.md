@@ -10,12 +10,13 @@ building distributed event-driven systems.
 - 📨 Event handling
   - 🌊 Stream management, declare streams and bind subjects to them, with
     configurable retention and limits
+  - 📄 Event data in Protobuf format, for strong typing and schema evolution
   - 📤 Publish events to subjects, with idempotency and OpenTelemetry tracing
   - 📥 Durable consumers with distributed processing
-  - 🕒 Ephemeral consumers for one of event processing
+  - 🕒 Ephemeral consumers for one off event processing
   - 🔄 Automatic redelivery of failed events, events can be accepted or rejected
     by consumers
-  - 🔔 Ability to ping events if processing takes a long time
+  - 🔔 Ability to extend processing time by pinging events
 - 🔍 Observability via OpenTelemetry tracing
 
 ### Planned features
@@ -76,6 +77,72 @@ service.EnsureConsumer(windshift.events.v1alpha1.EnsureConsumerRequest{
     subjects: [ "orders.created" ],
 })
 ```
+
+### Publishing events
+
+Events can be published to subjects using the `Publish` method.
+
+Example in pseudo-code:
+
+```typescript
+service.Publish(windshift.events.v1alpha1.PublishRequest{
+    subject: "orders.created",
+    data: protobufMessage,
+})
+```
+
+Features:
+
+- Timestamps for when the event occurred can be specified with `timestamp`.
+- Idempotency keys can be specified using `idempotency_key`. If an event with
+  the same idempotency key has already been published, the event will not be
+  published again. The window for detecting duplicates can be configured via
+  the stream.
+- Optimistic concurrency control can be used via `expected_last_id`. If the
+  last event in the stream does not have the specified id, the event will not
+  be published.
+
+### Consuming events
+
+Events can be consumed by opening a bi-directional stream using the `Consume`
+method. The first message sent to the stream should be a `Subscribe` with the
+stream and consumer to subscribe to. After that, events will be sent to the
+stream as they are published.
+
+Example in pseudo-code:
+
+```typescript
+stream = service.Consume()
+stream.Send(windowshift.events.v1alpha1.ConsumeRequest{
+  subscribe: &windshift.events.v1alpha1.ConsumeRequest.Subscribe{
+    stream: "orders",
+    consumer: "order-processor",
+  }
+})
+
+event = stream.Recv()
+```
+
+Events need to be accepted or rejected by sending an `Accept` or `Reject` to
+the stream. If an event is not accepted or rejected within the configured
+consumer timeout, it will be redelivered.
+
+Example in pseudo-code:
+
+```typescript
+stream.Send(windshift.events.v1alpha1.ConsumeRequest{
+  accept: &windshift.events.v1alpha1.ConsumeRequest.Accept{
+    ids: [ event.id ],
+  }
+})
+```
+
+If more time is needed to process an event, a `Ping` can be sent to the stream.
+This will extend the timeout for the event.
+
+The server will respond with confirmations to `Accept`, `Reject` and `Ping`
+messages. These confirmations contain information about if the message was
+processed successfully, or if it failed.
 
 ## Working with the code
 
