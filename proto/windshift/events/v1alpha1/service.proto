@@ -261,18 +261,36 @@ message EventsResponse {
 	message AcceptConfirmation {
 		// The identifiers that were accepted.
 		repeated uint64 ids = 1;
+		// Identifiers that were invalid, such as already being accepted or
+		// rejected, should not be retried by the client.
+		repeated uint64 invalid_ids = 2;
+		// Identifiers that could not be processed temporarily, should be
+		// retried by the client.
+		repeated uint64 temporary_failed_ids = 3;
 	}
 
 	// Confirmation that some events were rejected.
 	message RejectConfirmation {
 		// The identifiers that were rejected.
 		repeated uint64 ids = 1;
+		// Identifiers that were invalid, such as already being accepted or
+		// rejected, should not be retried by the client.
+		repeated uint64 invalid_ids = 2;
+		// Identifiers that could not be processed temporarily, should be
+		// retried by the client.
+		repeated uint64 temporary_failed_ids = 3;
 	}
 
 	// Confirmation that a ping was received.
 	message PingConfirmation {
 		// The identifiers of the events that are currently being processed.
 		repeated uint64 ids = 1;
+		// Identifiers that were invalid, such as already being accepted or
+		// rejected, should not be retried by the client.
+		repeated uint64 invalid_ids = 2;
+		// Identifiers that could not be processed temporarily, should be
+		// retried by the client.
+		repeated uint64 temporary_failed_ids = 3;
 	}
 
 	oneof response {

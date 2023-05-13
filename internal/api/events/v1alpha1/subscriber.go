@@ -6,6 +6,7 @@ import (
 	eventsv1alpha1 "windshift/service/internal/proto/windshift/events/v1alpha1"
 
 	"github.com/cockroachdb/errors"
+	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -127,24 +128,36 @@ func (e *EventsServiceServer) handleAccept(
 ) error {
 	ids := r.Accept.Ids
 
-	acceptedIds := make([]uint64, 0, len(ids))
+	processedIds := make([]uint64, 0, len(ids))
+	invalidIds := make([]uint64, 0, len(ids))
+	temporaryErrors := make([]uint64, 0, len(ids))
 	for _, id := range ids {
 		event, ok := eventMap[id]
 		if ok {
 			err := event.Accept()
 			if err != nil {
-				return errors.Wrap(err, "could not accept event")
+				if errors.Is(err, nats.ErrInvalidJSAck) || errors.Is(err, nats.ErrMsgAlreadyAckd) {
+					invalidIds = append(invalidIds, id)
+					delete(eventMap, id)
+				} else {
+					e.logger.Warn("Could not reject event", zap.Error(err))
+					temporaryErrors = append(temporaryErrors, id)
+				}
+			} else {
+				processedIds = append(processedIds, id)
+				delete(eventMap, id)
 			}
-
-			acceptedIds = append(acceptedIds, id)
-			delete(eventMap, id)
+		} else {
+			invalidIds = append(invalidIds, id)
 		}
 	}
 
 	err := server.Send(&eventsv1alpha1.EventsResponse{
 		Response: &eventsv1alpha1.EventsResponse_AcceptConfirmation_{
 			AcceptConfirmation: &eventsv1alpha1.EventsResponse_AcceptConfirmation{
-				Ids: acceptedIds,
+				Ids:                processedIds,
+				InvalidIds:         invalidIds,
+				TemporaryFailedIds: temporaryErrors,
 			},
 		},
 	})
@@ -164,7 +177,9 @@ func (e *EventsServiceServer) handleReject(
 	permanently := r.Reject.Permanently
 	delay := r.Reject.Delay
 
-	rejectedIds := make([]uint64, 0, len(ids))
+	processedIds := make([]uint64, 0, len(ids))
+	invalidIds := make([]uint64, 0, len(ids))
+	temporaryErrors := make([]uint64, 0, len(ids))
 	for _, id := range ids {
 		event, ok := eventMap[id]
 		if ok {
@@ -179,18 +194,26 @@ func (e *EventsServiceServer) handleReject(
 
 			if err != nil {
 				e.logger.Warn("Could not reject event", zap.Error(err))
-				continue
+				if errors.Is(err, nats.ErrInvalidJSAck) || errors.Is(err, nats.ErrMsgAlreadyAckd) {
+					invalidIds = append(invalidIds, id)
+					delete(eventMap, id)
+				} else {
+					temporaryErrors = append(temporaryErrors, id)
+				}
+			} else {
+				processedIds = append(processedIds, id)
 			}
-
-			rejectedIds = append(rejectedIds, id)
-			delete(eventMap, id)
+		} else {
+			invalidIds = append(invalidIds, id)
 		}
 	}
 
 	err := server.Send(&eventsv1alpha1.EventsResponse{
 		Response: &eventsv1alpha1.EventsResponse_RejectConfirmation_{
 			RejectConfirmation: &eventsv1alpha1.EventsResponse_RejectConfirmation{
-				Ids: rejectedIds,
+				Ids:                processedIds,
+				InvalidIds:         invalidIds,
+				TemporaryFailedIds: temporaryErrors,
 			},
 		},
 	})
@@ -207,20 +230,36 @@ func (e *EventsServiceServer) handlePing(
 	r *eventsv1alpha1.EventsRequest_Ping_,
 ) error {
 	ids := r.Ping.Ids
+
+	processedIds := make([]uint64, 0, len(ids))
+	invalidIds := make([]uint64, 0, len(ids))
+	temporaryErrors := make([]uint64, 0, len(ids))
 	for _, id := range ids {
 		event, ok := eventMap[id]
 		if ok {
 			err := event.Ping()
 			if err != nil {
-				return errors.Wrap(err, "could not ping event")
+				e.logger.Warn("Could not ping event", zap.Error(err))
+				if errors.Is(err, nats.ErrInvalidMsg) {
+					invalidIds = append(invalidIds, id)
+					delete(eventMap, id)
+				} else {
+					temporaryErrors = append(temporaryErrors, id)
+				}
+			} else {
+				processedIds = append(processedIds, id)
 			}
+		} else {
+			invalidIds = append(invalidIds, id)
 		}
 	}
 
 	err := server.Send(&eventsv1alpha1.EventsResponse{
 		Response: &eventsv1alpha1.EventsResponse_PingConfirmation_{
 			PingConfirmation: &eventsv1alpha1.EventsResponse_PingConfirmation{
-				Ids: ids,
+				Ids:                processedIds,
+				InvalidIds:         invalidIds,
+				TemporaryFailedIds: temporaryErrors,
 			},
 		},
 	})
