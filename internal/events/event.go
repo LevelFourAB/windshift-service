@@ -152,24 +152,43 @@ func (e *Event) Accept() error {
 	return nil
 }
 
-// Reject rejects the event. If allowRedeliver is true, the event will be
-// redelivered after a certain amount of time. If false, the event will be
-// permanently rejected and not redelivered.
-func (e *Event) Reject(allowRedeliver bool) error {
+// Reject rejects the event.
+func (e *Event) Reject() error {
 	defer e.span.End()
 
-	if allowRedeliver {
-		// The event should be redelivered if possible
-		e.logger.Debug("Rejecting event", zap.Uint64("streamSeq", e.StreamSeq))
-		err := e.msg.Nak()
-		if err != nil {
-			e.span.RecordError(err)
-			return errors.Wrap(err, "could not reject message")
-		}
-
-		e.span.SetStatus(codes.Error, "event rejected")
-		return nil
+	// The event should be redelivered if possible
+	e.logger.Debug("Rejecting event", zap.Uint64("streamSeq", e.StreamSeq))
+	err := e.msg.Nak()
+	if err != nil {
+		e.span.RecordError(err)
+		return errors.Wrap(err, "could not reject message")
 	}
+
+	e.span.SetStatus(codes.Error, "event rejected")
+	return nil
+}
+
+// RejectWithDelay rejects the event with a delay. The event will be redelivered
+// after the delay.
+func (e *Event) RejectWithDelay(delay time.Duration) error {
+	defer e.span.End()
+
+	// The event should be redelivered if possible
+	e.logger.Debug("Rejecting event with delay", zap.Uint64("streamSeq", e.StreamSeq), zap.Duration("delay", delay))
+	err := e.msg.NakWithDelay(delay)
+	if err != nil {
+		e.span.RecordError(err)
+		return errors.Wrap(err, "could not reject message")
+	}
+
+	e.span.SetStatus(codes.Error, "event rejected")
+	return nil
+}
+
+// RejectPermanently permanently rejects the event. The event will be removed
+// and no redelivery will be attempted.
+func (e *Event) RejectPermanently() error {
+	defer e.span.End()
 
 	// This is a permanent rejection, terminate the event
 	e.logger.Debug("Permanently rejecting event", zap.Uint64("streamSeq", e.StreamSeq))

@@ -225,8 +225,13 @@ message EventsRequest {
 	message Reject {
 		// The identifiers to reject.
 		repeated uint64 ids = 1;
-		// Whether to retry the events or not.
-		bool retry = 2;
+		// Permanently reject the events, if not provided the events will be
+		// retried after a timeout. If permanently is set to true, the events
+		// will not be redelivered.
+		optional bool permanently = 2;
+		// Optional time to wait before redelivering the events. If not
+		// provided the server will decide how long to wait.
+		optional google.protobuf.Duration delay = 3;
 	}
 
 	// Ping events to indicate that they are still being processed.

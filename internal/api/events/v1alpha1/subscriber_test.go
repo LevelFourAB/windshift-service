@@ -170,8 +170,7 @@ var _ = Describe("Events", func() {
 			err = client.Send(&eventsv1alpha1.EventsRequest{
 				Request: &eventsv1alpha1.EventsRequest_Reject_{
 					Reject: &eventsv1alpha1.EventsRequest_Reject{
-						Ids:   []uint64{in.GetEvent().GetId()},
-						Retry: true,
+						Ids: []uint64{in.GetEvent().GetId()},
 					},
 				},
 			})

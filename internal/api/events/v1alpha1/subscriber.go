@@ -125,29 +125,9 @@ func (e *EventsServiceServer) Events(server eventsv1alpha1.EventsService_EventsS
 					return errors.Wrap(err, "could not send accept confirmation")
 				}
 			case *eventsv1alpha1.EventsRequest_Reject_:
-				ids := r.Reject.Ids
-				retry := r.Reject.Retry
-				for _, id := range ids {
-					event, ok := eventMap[id]
-					if ok {
-						err = event.Reject(retry)
-						if err != nil {
-							return errors.Wrap(err, "could not reject event")
-						}
-
-						delete(eventMap, id)
-					}
-				}
-
-				err = server.Send(&eventsv1alpha1.EventsResponse{
-					Response: &eventsv1alpha1.EventsResponse_RejectConfirmation_{
-						RejectConfirmation: &eventsv1alpha1.EventsResponse_RejectConfirmation{
-							Ids: ids,
-						},
-					},
-				})
+				err = e.handleReject(server, eventMap, r)
 				if err != nil {
-					return errors.Wrap(err, "could not send reject confirmation")
+					return err
 				}
 			case *eventsv1alpha1.EventsRequest_Ping_:
 				ids := r.Ping.Ids
@@ -174,6 +154,52 @@ func (e *EventsServiceServer) Events(server eventsv1alpha1.EventsService_EventsS
 			}
 		}
 	}
+}
+
+func (e *EventsServiceServer) handleReject(
+	server eventsv1alpha1.EventsService_EventsServer,
+	eventMap map[uint64]*events.Event,
+	r *eventsv1alpha1.EventsRequest_Reject_,
+) error {
+	ids := r.Reject.Ids
+	permanently := r.Reject.Permanently
+	delay := r.Reject.Delay
+
+	rejectedIds := make([]uint64, 0, len(ids))
+	for _, id := range ids {
+		event, ok := eventMap[id]
+		if ok {
+			var err error
+			if permanently != nil && *permanently {
+				err = event.RejectPermanently()
+			} else if delay != nil {
+				err = event.RejectWithDelay(delay.AsDuration())
+			} else {
+				err = event.Reject()
+			}
+
+			if err != nil {
+				e.logger.Warn("Could not reject event", zap.Error(err))
+				continue
+			}
+
+			rejectedIds = append(rejectedIds, id)
+			delete(eventMap, id)
+		}
+	}
+
+	err := server.Send(&eventsv1alpha1.EventsResponse{
+		Response: &eventsv1alpha1.EventsResponse_RejectConfirmation_{
+			RejectConfirmation: &eventsv1alpha1.EventsResponse_RejectConfirmation{
+				Ids: rejectedIds,
+			},
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "could not send reject confirmation")
+	}
+
+	return nil
 }
 
 func (*EventsServiceServer) createQueueConfig(sub *eventsv1alpha1.EventsRequest_Subscribe) *events.QueueConfig {

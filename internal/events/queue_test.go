@@ -544,7 +544,7 @@ var _ = Describe("Queue", func() {
 			case event := <-queue.Events():
 				Expect(event).ToNot(BeNil())
 
-				err = event.Reject(true)
+				err = event.Reject()
 				Expect(err).ToNot(HaveOccurred())
 			case <-time.After(200 * time.Millisecond):
 				Fail("no event received")
@@ -597,7 +597,7 @@ var _ = Describe("Queue", func() {
 				Expect(event).ToNot(BeNil())
 
 				event.DiscardData()
-				err = event.Reject(true)
+				err = event.Reject()
 				Expect(err).ToNot(HaveOccurred())
 			case <-time.After(200 * time.Millisecond):
 				Fail("no event received")
@@ -652,7 +652,7 @@ var _ = Describe("Queue", func() {
 			err = queue1.Close()
 			Expect(err).ToNot(HaveOccurred())
 
-			err = event.Reject(true)
+			err = event.Reject()
 			Expect(err).ToNot(HaveOccurred())
 
 			// Receive the event again
@@ -715,6 +715,49 @@ var _ = Describe("Queue", func() {
 			}
 		})
 
+		It("can reject with a delay", func(ctx context.Context) {
+			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
+				Stream: "events",
+				Name:   "test",
+				Subjects: []string{
+					"events.>",
+				},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+				Stream: "events",
+				Name:   "test",
+			})
+			Expect(err).ToNot(HaveOccurred())
+			defer queue.Close()
+
+			msg, err := anypb.New(&emptypb.Empty{})
+			Expect(err).ToNot(HaveOccurred())
+			_, err = manager.Publish(ctx, &events.PublishConfig{
+				Subject: "events.test",
+				Data:    msg,
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			event := <-queue.Events()
+			Expect(event).ToNot(BeNil())
+
+			start := time.Now()
+			err = event.RejectWithDelay(100 * time.Millisecond)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Receive the event again
+			select {
+			case <-queue.Events():
+				if time.Since(start) < 100*time.Millisecond {
+					Fail("event received too early")
+				}
+			case <-time.After(200 * time.Millisecond):
+				Fail("no event received")
+			}
+		})
+
 		It("permanently rejecting event does not redeliver it", func(ctx context.Context) {
 			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
@@ -743,7 +786,7 @@ var _ = Describe("Queue", func() {
 			event := <-queue.Events()
 			Expect(event).ToNot(BeNil())
 
-			err = event.Reject(false)
+			err = event.RejectPermanently()
 			Expect(err).ToNot(HaveOccurred())
 
 			// Receive the event again
@@ -783,7 +826,7 @@ var _ = Describe("Queue", func() {
 			event := <-queue.Events()
 			Expect(event).ToNot(BeNil())
 
-			err = event.Reject(false)
+			err = event.Reject()
 			Expect(err).ToNot(HaveOccurred())
 
 			// Receive the event again

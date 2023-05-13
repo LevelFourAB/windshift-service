@@ -1249,9 +1249,31 @@ func (m *EventsRequest_Reject) MarshalToSizedBufferVT(dAtA []byte) (int, error) 
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if m.Retry {
+	if m.Delay != nil {
+		if vtmsg, ok := interface{}(m.Delay).(interface {
+			MarshalToSizedBufferVT([]byte) (int, error)
+		}); ok {
+			size, err := vtmsg.MarshalToSizedBufferVT(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarint(dAtA, i, uint64(size))
+		} else {
+			encoded, err := proto.Marshal(m.Delay)
+			if err != nil {
+				return 0, err
+			}
+			i -= len(encoded)
+			copy(dAtA[i:], encoded)
+			i = encodeVarint(dAtA, i, uint64(len(encoded)))
+		}
 		i--
-		if m.Retry {
+		dAtA[i] = 0x1a
+	}
+	if m.Permanently != nil {
+		i--
+		if *m.Permanently {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
@@ -2441,8 +2463,18 @@ func (m *EventsRequest_Reject) SizeVT() (n int) {
 		}
 		n += 1 + sov(uint64(l)) + l
 	}
-	if m.Retry {
+	if m.Permanently != nil {
 		n += 2
+	}
+	if m.Delay != nil {
+		if size, ok := interface{}(m.Delay).(interface {
+			SizeVT() int
+		}); ok {
+			l = size.SizeVT()
+		} else {
+			l = proto.Size(m.Delay)
+		}
+		n += 1 + l + sov(uint64(l))
 	}
 	n += len(m.unknownFields)
 	return n
@@ -4926,7 +4958,7 @@ func (m *EventsRequest_Reject) UnmarshalVT(dAtA []byte) error {
 			}
 		case 2:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Retry", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Permanently", wireType)
 			}
 			var v int
 			for shift := uint(0); ; shift += 7 {
@@ -4943,7 +4975,52 @@ func (m *EventsRequest_Reject) UnmarshalVT(dAtA []byte) error {
 					break
 				}
 			}
-			m.Retry = bool(v != 0)
+			b := bool(v != 0)
+			m.Permanently = &b
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Delay", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Delay == nil {
+				m.Delay = &durationpb.Duration{}
+			}
+			if unmarshal, ok := interface{}(m.Delay).(interface {
+				UnmarshalVT([]byte) error
+			}); ok {
+				if err := unmarshal.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+					return err
+				}
+			} else {
+				if err := proto.Unmarshal(dAtA[iNdEx:postIndex], m.Delay); err != nil {
+					return err
+				}
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skip(dAtA[iNdEx:])
