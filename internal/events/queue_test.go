@@ -8,10 +8,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap/zaptest"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -20,24 +18,15 @@ var _ = Describe("Queue", func() {
 	var manager *events.Manager
 
 	BeforeEach(func() {
-		natsConn := GetNATS()
+		manager, _ = createManagerAndJetStream()
 
-		natsEvents, err := events.NewManager(
-			zaptest.NewLogger(GinkgoT()),
-			otel.Tracer("tests"),
-			natsConn,
-		)
-		Expect(err).ToNot(HaveOccurred())
-
-		_, err = natsEvents.EnsureStream(context.Background(), &events.StreamConfig{
+		_, err := manager.EnsureStream(context.Background(), &events.StreamConfig{
 			Name: "events",
 			Subjects: []string{
 				"events.>",
 			},
 		})
 		Expect(err).ToNot(HaveOccurred())
-
-		manager = natsEvents
 	})
 
 	Describe("Ephemeral queues", func() {
