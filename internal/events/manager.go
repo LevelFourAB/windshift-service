@@ -1,8 +1,6 @@
 package events
 
 import (
-	"context"
-
 	"github.com/cockroachdb/errors"
 	"github.com/nats-io/nats.go"
 	"go.opentelemetry.io/otel/propagation"
@@ -36,8 +34,4 @@ func NewManager(
 	}
 
 	return m, nil
-}
-
-func (m *Manager) EnsureStream(ctx context.Context, config *StreamConfig) (*Stream, error) {
-	return EnsureStream(ctx, m.jetStream, config)
 }

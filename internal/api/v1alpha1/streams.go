@@ -26,13 +26,17 @@ func (e *EventsServiceServer) EnsureStream(ctx context.Context, req *eventsv1alp
 			config.MaxMsgs = uint(*policy.MaxEvents)
 		}
 
+		if policy.MaxEventsPerSubject != nil {
+			config.MaxMsgsPerSubject = uint(*policy.MaxEventsPerSubject)
+		}
+
 		if policy.DiscardPolicy != nil {
 			switch *policy.DiscardPolicy {
 			case eventsv1alpha1.EnsureStreamRequest_DISCARD_POLICY_NEW:
-				config.DiscardPolicy = events.DiscardNew
+				config.DiscardPolicy = events.DiscardPolicyNew
 			case eventsv1alpha1.EnsureStreamRequest_DISCARD_POLICY_OLD,
 				eventsv1alpha1.EnsureStreamRequest_DISCARD_POLICY_UNSPECIFIED:
-				config.DiscardPolicy = events.DiscardOld
+				config.DiscardPolicy = events.DiscardPolicyOld
 			}
 		}
 
@@ -61,12 +65,22 @@ func (e *EventsServiceServer) EnsureStream(ctx context.Context, req *eventsv1alp
 		if req.Storage.Type != nil {
 			switch *req.Storage.Type {
 			case eventsv1alpha1.EnsureStreamRequest_STORAGE_TYPE_MEMORY:
-				config.StorageType = events.MemoryStorage
+				config.StorageType = events.StorageTypeMemory
 			case eventsv1alpha1.EnsureStreamRequest_STORAGE_TYPE_FILE,
 				eventsv1alpha1.EnsureStreamRequest_STORAGE_TYPE_UNSPECIFIED:
-				config.StorageType = events.FileStorage
+				config.StorageType = events.StorageTypeFile
 			}
 		}
+	}
+
+	if req.DeduplicationWindow != nil {
+		deduplicationWindow := req.DeduplicationWindow.AsDuration()
+		config.DeduplicationWindow = &deduplicationWindow
+	}
+
+	if req.MaxEventSize != nil {
+		maxEventSize := uint(*req.MaxEventSize)
+		config.MaxEventSize = &maxEventSize
 	}
 
 	_, err := e.events.EnsureStream(ctx, config)

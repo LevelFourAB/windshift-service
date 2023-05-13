@@ -6,20 +6,25 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/nats-io/nats.go"
+	"go.opentelemetry.io/otel/attribute"
+	semconv "go.opentelemetry.io/otel/semconv/v1.18.0"
+	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type DiscardPolicy int
 
 const (
-	DiscardOld DiscardPolicy = iota
-	DiscardNew
+	DiscardPolicyOld DiscardPolicy = iota
+	DiscardPolicyNew
 )
 
 type StorageType int
 
 const (
-	FileStorage StorageType = iota
-	MemoryStorage
+	StorageTypeFile StorageType = iota
+	StorageTypeMemory
 )
 
 type StreamSource struct {
@@ -41,6 +46,8 @@ type StreamConfig struct {
 	MaxMsgs uint
 	// MaxBytes is the maximum number of bytes to retain in the stream.
 	MaxBytes uint
+	// MaxMsgsPerSubject is the maximum number of messages to retain per subject.
+	MaxMsgsPerSubject uint
 
 	// DiscardPolicy controls the policy for discarding messages when the
 	// stream reaches its maximum size.
@@ -71,21 +78,64 @@ type StreamConfig struct {
 type Stream struct{}
 
 // EnsureStream ensures that a JetStream stream exists with the given configuration.
-func EnsureStream(_ context.Context, js nats.JetStreamContext, config *StreamConfig) (*Stream, error) {
+func (m *Manager) EnsureStream(ctx context.Context, config *StreamConfig) (*Stream, error) {
+	_, span := m.tracer.Start(
+		ctx,
+		"windshift.events.EnsureStream",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			semconv.MessagingSystem("nats"),
+			attribute.String("stream", config.Name),
+		),
+	)
+	defer span.End()
+
+	natsDiscardPolicy := nats.DiscardOld
+	switch config.DiscardPolicy {
+	case DiscardPolicyOld:
+		natsDiscardPolicy = nats.DiscardOld
+	case DiscardPolicyNew:
+		natsDiscardPolicy = nats.DiscardNew
+	}
+
 	streamConfig := &nats.StreamConfig{
 		Name:     config.Name,
 		Subjects: config.Subjects,
 
-		MaxMsgs:  int64(config.MaxMsgs),
-		MaxBytes: int64(config.MaxBytes),
-		MaxAge:   config.MaxAge,
+		MaxMsgs:           int64(config.MaxMsgs),
+		MaxMsgsPerSubject: int64(config.MaxMsgsPerSubject),
+		MaxBytes:          int64(config.MaxBytes),
+		MaxAge:            config.MaxAge,
 
-		Discard:              nats.DiscardPolicy(config.DiscardPolicy),
+		Discard:              natsDiscardPolicy,
 		DiscardNewPerSubject: config.DiscardNewPerSubject,
 
 		Storage: nats.StorageType(config.StorageType),
 
 		MaxConsumers: -1,
+	}
+
+	if config.Mirror != nil {
+		mirror, err := toNatsStreamSource(config.Mirror)
+		if err != nil {
+			return nil, errors.Wrap(err, "mirror config invalid")
+		}
+
+		streamConfig.Mirror = mirror
+	}
+
+	if config.Sources != nil && len(config.Sources) > 0 {
+		sources := make([]*nats.StreamSource, len(config.Sources))
+		for i, source := range config.Sources {
+			natsSource, err := toNatsStreamSource(source)
+			if err != nil {
+				return nil, errors.Wrap(err, "source config invalid")
+			}
+
+			sources[i] = natsSource
+		}
+
+		streamConfig.Sources = sources
 	}
 
 	if config.Replicas != nil && *config.Replicas == 0 {
@@ -105,10 +155,15 @@ func EnsureStream(_ context.Context, js nats.JetStreamContext, config *StreamCon
 		streamConfig.MaxMsgSize = int32(*config.MaxEventSize)
 	}
 
-	_, err := js.StreamInfo(config.Name)
+	_, err := m.jetStream.StreamInfo(config.Name)
 	if errors.Is(err, nats.ErrStreamNotFound) {
 		// No stream with this name exists
-		_, err = js.AddStream(streamConfig)
+		m.logger.Info(
+			"Creating stream",
+			zap.String("name", config.Name),
+			zap.Object("config", (*ZapStreamConfig)(streamConfig)),
+		)
+		_, err = m.jetStream.AddStream(streamConfig)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create JetStream stream")
 		}
@@ -118,10 +173,145 @@ func EnsureStream(_ context.Context, js nats.JetStreamContext, config *StreamCon
 		return nil, errors.Wrap(err, "failed to get JetStream stream info")
 	}
 
-	_, err = js.UpdateStream(streamConfig)
+	m.logger.Info(
+		"Updating stream",
+		zap.String("name", config.Name),
+		zap.Object("config", (*ZapStreamConfig)(streamConfig)),
+	)
+	_, err = m.jetStream.UpdateStream(streamConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to update JetStream stream")
 	}
 
 	return &Stream{}, nil
+}
+
+func toNatsStreamSource(source *StreamSource) (*nats.StreamSource, error) {
+	res := &nats.StreamSource{
+		Name: source.Name,
+	}
+
+	if source.FilterSubjects != nil && len(source.FilterSubjects) > 0 {
+		if len(source.FilterSubjects) > 1 {
+			return nil, errors.New("only one filter subject can be specified")
+		}
+
+		res.FilterSubject = source.FilterSubjects[0]
+	}
+
+	if source.Pointer != nil {
+		if source.Pointer.ID != 0 {
+			res.OptStartSeq = source.Pointer.ID
+		} else if !source.Pointer.Time.IsZero() {
+			res.OptStartTime = &source.Pointer.Time
+		} else if !source.Pointer.First {
+			now := time.Now()
+			res.OptStartTime = &now
+		}
+	} else {
+		// No pointer, set that we want to receive new events
+		now := time.Now()
+		res.OptStartTime = &now
+	}
+
+	return res, nil
+}
+
+type ZapStreamConfig nats.StreamConfig
+
+func (c *ZapStreamConfig) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	err := enc.AddArray("subjects", zapcore.ArrayMarshalerFunc(func(enc zapcore.ArrayEncoder) error {
+		for _, subject := range c.Subjects {
+			enc.AppendString(subject)
+		}
+		return nil
+	}))
+	if err != nil {
+		return err
+	}
+
+	if c.Mirror != nil {
+		err = enc.AddObject("mirror", (*ZapStreamSource)(c.Mirror))
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.Sources != nil && len(c.Sources) > 0 {
+		err = enc.AddArray("sources", zapcore.ArrayMarshalerFunc(func(enc zapcore.ArrayEncoder) error {
+			for _, source := range c.Sources {
+				err2 := enc.AppendObject((*ZapStreamSource)(source))
+				if err2 != nil {
+					return err2
+				}
+			}
+
+			return nil
+		}))
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.MaxAge != 0 {
+		enc.AddDuration("maxAge", c.MaxAge)
+	}
+
+	if c.MaxMsgs != 0 {
+		enc.AddInt64("maxMsgs", c.MaxMsgs)
+	}
+
+	if c.MaxMsgsPerSubject != 0 {
+		enc.AddInt64("maxMsgsPerSubject", c.MaxMsgsPerSubject)
+	}
+
+	if c.MaxBytes != 0 {
+		enc.AddInt64("maxBytes", c.MaxBytes)
+	}
+
+	switch c.Discard {
+	case nats.DiscardOld:
+		enc.AddString("discard", "old")
+	case nats.DiscardNew:
+		enc.AddString("discard", "new")
+	}
+
+	enc.AddBool("discardNewPerSubject", c.DiscardNewPerSubject)
+
+	switch c.Storage {
+	case nats.FileStorage:
+		enc.AddString("storage", "file")
+	case nats.MemoryStorage:
+		enc.AddString("storage", "memory")
+	}
+
+	if c.Replicas != 0 {
+		enc.AddInt("replicas", c.Replicas)
+	}
+
+	if c.Duplicates != 0 {
+		enc.AddDuration("duplicates", c.Duplicates)
+	}
+
+	return nil
+}
+
+type ZapStreamSource nats.StreamSource
+
+func (s *ZapStreamSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddString("name", s.Name)
+
+	if s.FilterSubject != "" {
+		enc.AddString("filterSubject", s.FilterSubject)
+	}
+
+	if s.OptStartSeq != 0 {
+		enc.AddUint64("startSeq", s.OptStartSeq)
+	}
+
+	if s.OptStartTime != nil {
+		enc.AddTime("startTime", *s.OptStartTime)
+	}
+
+	return nil
 }

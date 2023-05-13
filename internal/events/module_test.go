@@ -3,11 +3,14 @@ package events_test
 import (
 	"os"
 	"time"
+	"windshift/service/internal/events"
 
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"go.opentelemetry.io/otel"
+	"go.uber.org/zap/zaptest"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -50,6 +53,22 @@ func GetJetStream() nats.JetStreamContext {
 	js, err := natsConn.JetStream()
 	Expect(err).ToNot(HaveOccurred())
 	return js
+}
+
+func createManagerAndJetStream() (*events.Manager, nats.JetStreamContext) {
+	natsConn := GetNATS()
+
+	js, err := natsConn.JetStream()
+	Expect(err).ToNot(HaveOccurred())
+
+	manager, err := events.NewManager(
+		zaptest.NewLogger(GinkgoT()),
+		otel.Tracer("tests"),
+		natsConn,
+	)
+	Expect(err).ToNot(HaveOccurred())
+
+	return manager, js
 }
 
 func Data(msg proto.Message) *anypb.Any {

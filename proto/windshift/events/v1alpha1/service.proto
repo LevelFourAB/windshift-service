@@ -37,16 +37,19 @@ message EnsureStreamRequest {
 		// Maximum number of events in the stream. Events beyond this limit will
 		// be deleted.
 		optional uint64 max_events = 2;
+		// Maximum number of events per subject in the stream. Events beyond
+		// this limit will be deleted.
+		optional uint64 max_events_per_subject = 3;
 		// Maximum size of events in the stream. Events beyond this limit will
 		// be deleted.
-		optional uint64 max_bytes = 3;
+		optional uint64 max_bytes = 4;
 
 		// Policy to use when discarding events the stream is full. Defaults
 		// to discarding old events.
-		optional DiscardPolicy discard_policy = 4;
+		optional DiscardPolicy discard_policy = 5;
 		// If discard policy is set to discard new events, settings this to
 		// true will discard new events per subject instead of globally.
-		optional bool discard_new_per_subject = 5;
+		optional bool discard_new_per_subject = 6;
 	}
 
 	// Policy to use when discarding events when the stream is full.

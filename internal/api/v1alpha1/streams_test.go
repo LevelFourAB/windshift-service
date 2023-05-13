@@ -109,4 +109,104 @@ var _ = Describe("Streams", func() {
 		})
 		Expect(err).ToNot(HaveOccurred())
 	})
+
+	It("can create stream with max age and max events", func(ctx context.Context) {
+		maxEvents := uint64(100)
+		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
+			Name: "test",
+			Source: &eventsv1alpha1.EnsureStreamRequest_Subjects_{
+				Subjects: &eventsv1alpha1.EnsureStreamRequest_Subjects{
+					Subjects: []string{"test"},
+				},
+			},
+			RetentionPolicy: &eventsv1alpha1.EnsureStreamRequest_RetentionPolicy{
+				MaxAge:    durationpb.New(1 * time.Hour),
+				MaxEvents: &maxEvents,
+			},
+		})
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	It("can create stream with max age and max bytes", func(ctx context.Context) {
+		maxBytes := uint64(1024)
+		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
+			Name: "test",
+			Source: &eventsv1alpha1.EnsureStreamRequest_Subjects_{
+				Subjects: &eventsv1alpha1.EnsureStreamRequest_Subjects{
+					Subjects: []string{"test"},
+				},
+			},
+			RetentionPolicy: &eventsv1alpha1.EnsureStreamRequest_RetentionPolicy{
+				MaxAge:   durationpb.New(1 * time.Hour),
+				MaxBytes: &maxBytes,
+			},
+		})
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	It("can create stream with max events and max bytes", func(ctx context.Context) {
+		maxEvents := uint64(100)
+		maxBytes := uint64(1024)
+		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
+			Name: "test",
+			Source: &eventsv1alpha1.EnsureStreamRequest_Subjects_{
+				Subjects: &eventsv1alpha1.EnsureStreamRequest_Subjects{
+					Subjects: []string{"test"},
+				},
+			},
+			RetentionPolicy: &eventsv1alpha1.EnsureStreamRequest_RetentionPolicy{
+				MaxEvents: &maxEvents,
+				MaxBytes:  &maxBytes,
+			},
+		})
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	It("can create stream with max age, max events and max bytes", func(ctx context.Context) {
+		maxEvents := uint64(100)
+		maxBytes := uint64(1024)
+		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
+			Name: "test",
+			Source: &eventsv1alpha1.EnsureStreamRequest_Subjects_{
+				Subjects: &eventsv1alpha1.EnsureStreamRequest_Subjects{
+					Subjects: []string{"test"},
+				},
+			},
+			RetentionPolicy: &eventsv1alpha1.EnsureStreamRequest_RetentionPolicy{
+				MaxAge:    durationpb.New(1 * time.Hour),
+				MaxEvents: &maxEvents,
+				MaxBytes:  &maxBytes,
+			},
+		})
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	It("can update stream without max age and set max age", func(ctx context.Context) {
+		_, err := service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
+			Name: "test",
+			Source: &eventsv1alpha1.EnsureStreamRequest_Subjects_{
+				Subjects: &eventsv1alpha1.EnsureStreamRequest_Subjects{
+					Subjects: []string{
+						"test",
+					},
+				},
+			},
+		})
+		Expect(err).ToNot(HaveOccurred())
+
+		_, err = service.EnsureStream(ctx, &eventsv1alpha1.EnsureStreamRequest{
+			Name: "test",
+			Source: &eventsv1alpha1.EnsureStreamRequest_Subjects_{
+				Subjects: &eventsv1alpha1.EnsureStreamRequest_Subjects{
+					Subjects: []string{
+						"test",
+					},
+				},
+			},
+			RetentionPolicy: &eventsv1alpha1.EnsureStreamRequest_RetentionPolicy{
+				MaxAge: durationpb.New(1 * time.Hour),
+			},
+		})
+		Expect(err).ToNot(HaveOccurred())
+	})
 })
