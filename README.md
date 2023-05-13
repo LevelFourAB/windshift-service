@@ -6,19 +6,23 @@ building distributed event-driven systems.
 
 ## Features
 
-- Events
-  - Streams
-  - Subscriptions
-    - Ephemeral - if a subscription does not have a name it will only
-      receive events while it is active.
-    - Durable - giving a subscription a name makes it durable, allowing
-      for reconnection and distributed processing of events.
-    - Event replay - subscribers can request to receive all events for a certain
-      duration in the past.
-  - Error handling
-    - Logging of messages permanent fails
-    - Optional support for dead letter queues per stream
-- State
+- gRPC API for managing event streams, consumers and publishing events
+- Event handling
+  - Stream management, declare streams and bind subjects to them, with
+    configurable retention and limits
+  - Publish events to subjects, with idempotency and OpenTelemetry tracing
+  - Durable consumers with distributed processing
+  - Ephemeral consumers for one of event processing
+  - Automatic redelivery of failed events, events can be accepted or rejected
+    by consumers
+  - Ability to ping events if processing takes a long time
+- Observability via OpenTelemetry tracing
+
+### Planned features
+
+- Logging and dead-letter queues for events that fail processing
+- Key-value store for state management
+- Authentication and authorization for API access
 
 ## Environment variables
 
@@ -26,6 +30,52 @@ building distributed event-driven systems.
 | ------------- | ----------------------- | -------- | ------- |
 | `DEVELOPMENT` | Enable development mode | No       | `false` |
 | `NATS_URL`    | URL of the NATS server  | Yes      |         |
+
+## Events
+
+Event handling in Windshift is fully based around streams of events, with
+[NATS Jetstream](https://docs.nats.io/nats-concepts/jetstream) used as the
+event store.
+
+Streams can receive events from multiple subjects, but each subject can only
+be bound to one stream. For example, if you have a stream called `orders` which
+receives events from the `orders.created` subject, you cannot create another
+stream that also receives events from `orders.created`.
+
+The `windshift.events.v1alpha1.EventsService` is the main gRPC service for
+working with streams, subscriptions and events.
+
+### Streams
+
+Streams can be created with the `EnsureStream` method. This method will create
+a stream if it does not exist yet, or update the configuration of an existing
+stream.
+
+Example in pseudo-code:
+
+```typescript
+service.EnsureStream(windshift.events.v1alpha1.EnsureStreamRequest{
+    name: "orders",
+    subjects: [ "orders.*" ],
+})
+```
+
+### Consumers
+
+Consumers are used to process events from streams. Consumers can be durable or
+ephemeral. The `EnsureConsumer` method is used to create a consumer.
+This method will create a consumer if it does not exist yet, or update the
+configuration of an existing consumer.
+
+Example in pseudo-code:
+
+```typescript
+service.EnsureConsumer(windshift.events.v1alpha1.EnsureConsumerRequest{
+    stream: "orders",
+    name: "order-processor", // Provide a name to make it durable
+    subjects: [ "orders.created" ],
+})
+```
 
 ## Working with the code
 
