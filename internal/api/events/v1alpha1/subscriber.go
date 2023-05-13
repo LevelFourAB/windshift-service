@@ -101,28 +101,9 @@ func (e *EventsServiceServer) Events(server eventsv1alpha1.EventsService_EventsS
 			case *eventsv1alpha1.EventsRequest_Subscribe_:
 				return errors.New("cannot subscribe again")
 			case *eventsv1alpha1.EventsRequest_Accept_:
-				ids := r.Accept.Ids
-				for _, id := range ids {
-					event, ok := eventMap[id]
-					if ok {
-						err = event.Accept()
-						if err != nil {
-							return errors.Wrap(err, "could not accept event")
-						}
-
-						delete(eventMap, id)
-					}
-				}
-
-				err = server.Send(&eventsv1alpha1.EventsResponse{
-					Response: &eventsv1alpha1.EventsResponse_AcceptConfirmation_{
-						AcceptConfirmation: &eventsv1alpha1.EventsResponse_AcceptConfirmation{
-							Ids: ids,
-						},
-					},
-				})
+				err = e.handleAccept(server, eventMap, r)
 				if err != nil {
-					return errors.Wrap(err, "could not send accept confirmation")
+					return err
 				}
 			case *eventsv1alpha1.EventsRequest_Reject_:
 				err = e.handleReject(server, eventMap, r)
@@ -130,30 +111,48 @@ func (e *EventsServiceServer) Events(server eventsv1alpha1.EventsService_EventsS
 					return err
 				}
 			case *eventsv1alpha1.EventsRequest_Ping_:
-				ids := r.Ping.Ids
-				for _, id := range ids {
-					event, ok := eventMap[id]
-					if ok {
-						err = event.Ping()
-						if err != nil {
-							return errors.Wrap(err, "could not ping event")
-						}
-					}
-				}
-
-				err = server.Send(&eventsv1alpha1.EventsResponse{
-					Response: &eventsv1alpha1.EventsResponse_PingConfirmation_{
-						PingConfirmation: &eventsv1alpha1.EventsResponse_PingConfirmation{
-							Ids: ids,
-						},
-					},
-				})
+				err = e.handlePing(server, eventMap, r)
 				if err != nil {
-					return errors.Wrap(err, "could not send ping confirmation")
+					return err
 				}
 			}
 		}
 	}
+}
+
+func (e *EventsServiceServer) handleAccept(
+	server eventsv1alpha1.EventsService_EventsServer,
+	eventMap map[uint64]*events.Event,
+	r *eventsv1alpha1.EventsRequest_Accept_,
+) error {
+	ids := r.Accept.Ids
+
+	acceptedIds := make([]uint64, 0, len(ids))
+	for _, id := range ids {
+		event, ok := eventMap[id]
+		if ok {
+			err := event.Accept()
+			if err != nil {
+				return errors.Wrap(err, "could not accept event")
+			}
+
+			acceptedIds = append(acceptedIds, id)
+			delete(eventMap, id)
+		}
+	}
+
+	err := server.Send(&eventsv1alpha1.EventsResponse{
+		Response: &eventsv1alpha1.EventsResponse_AcceptConfirmation_{
+			AcceptConfirmation: &eventsv1alpha1.EventsResponse_AcceptConfirmation{
+				Ids: acceptedIds,
+			},
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "could not send accept confirmation")
+	}
+
+	return nil
 }
 
 func (e *EventsServiceServer) handleReject(
@@ -197,6 +196,36 @@ func (e *EventsServiceServer) handleReject(
 	})
 	if err != nil {
 		return errors.Wrap(err, "could not send reject confirmation")
+	}
+
+	return nil
+}
+
+func (e *EventsServiceServer) handlePing(
+	server eventsv1alpha1.EventsService_EventsServer,
+	eventMap map[uint64]*events.Event,
+	r *eventsv1alpha1.EventsRequest_Ping_,
+) error {
+	ids := r.Ping.Ids
+	for _, id := range ids {
+		event, ok := eventMap[id]
+		if ok {
+			err := event.Ping()
+			if err != nil {
+				return errors.Wrap(err, "could not ping event")
+			}
+		}
+	}
+
+	err := server.Send(&eventsv1alpha1.EventsResponse{
+		Response: &eventsv1alpha1.EventsResponse_PingConfirmation_{
+			PingConfirmation: &eventsv1alpha1.EventsResponse_PingConfirmation{
+				Ids: ids,
+			},
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "could not send ping confirmation")
 	}
 
 	return nil
