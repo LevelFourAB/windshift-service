@@ -210,9 +210,6 @@ message ConsumeRequest {
 		// The id of the consumer, should be an id previously created using
 		// EnsureConsumer.
 		string consumer = 2;
-		// Maximum number of events to receive at once. If not provided, the
-		// default of 100 will be used.
-		optional uint64 max_pending_events = 3;
 	}
 
 	// Accept indicates that some events have been successfully processed.

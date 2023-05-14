@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"time"
+	"windshift/service/internal/events/flowcontrol"
 
 	"github.com/cockroachdb/errors"
 	"github.com/nats-io/nats.go"
@@ -16,8 +17,6 @@ import (
 type QueueConfig struct {
 	Stream string
 	Name   string
-
-	MaxPendingMessages uint
 }
 
 type Queue struct {
@@ -30,8 +29,6 @@ type Queue struct {
 
 	subscription *nats.Subscription
 	channel      chan *Event
-
-	maxPendingMessages int
 
 	Timeout time.Duration
 }
@@ -71,15 +68,10 @@ func (m *Manager) Subscribe(ctx context.Context, config *QueueConfig) (*Queue, e
 		ctxCancel:      cancel,
 		shutdownSignal: make(chan struct{}, 1),
 
-		subscription:       sub,
-		channel:            make(chan *Event),
-		maxPendingMessages: 100,
+		subscription: sub,
+		channel:      make(chan *Event),
 
 		Timeout: ci.Config.AckWait,
-	}
-
-	if config.MaxPendingMessages > 0 {
-		q.maxPendingMessages = int(config.MaxPendingMessages)
 	}
 
 	go q.pump(ctx)
@@ -89,8 +81,8 @@ func (m *Manager) Subscribe(ctx context.Context, config *QueueConfig) (*Queue, e
 // pump is a helper function that will pump messages from the NATS subscription
 // into the channel.
 func (q *Queue) pump(ctx context.Context) {
-	batchSizer := NewBatchSizer(1, uint(q.maxPendingMessages))
-	limiter := NewLimiter(q.maxPendingMessages)
+	fc := flowcontrol.NewFlowControl(500*time.Millisecond, 1, 50)
+	timeout := q.Timeout
 
 	for {
 		if ctx.Err() != nil {
@@ -105,15 +97,7 @@ func (q *Queue) pump(ctx context.Context) {
 			return
 		}
 
-		var available int
-		select {
-		case <-ctx.Done():
-			continue
-		case available = <-limiter.Wait():
-			// Not currently limited, fetch a batch of events
-		}
-
-		batchSize := batchSizer.Get(available)
+		batchSize := fc.GetBatchSize()
 		q.logger.Debug("Fetching batch", zap.Int("size", batchSize))
 
 		subCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
@@ -133,16 +117,29 @@ func (q *Queue) pump(ctx context.Context) {
 		}
 
 		for msg := range batch.Messages() {
-			batchSizer.Processed()
-			limiter.Add()
-
-			event, err2 := q.createEvent(ctx, msg, limiter.Remove)
+			event, err2 := q.createEvent(ctx, msg)
 			if err2 != nil {
 				continue
 			}
 
 			q.logger.Debug("Received event", zap.String("type", event.Data.TypeUrl))
-			q.channel <- event
+			select {
+			case <-ctx.Done():
+				// Shutting down, reject the event
+				q.logger.Debug("Context done, rejecting event")
+				err2 := msg.Nak()
+				if err2 != nil {
+					q.logger.Warn("failed to reject message", zap.Error(err2))
+				}
+				continue
+			case <-time.After(timeout):
+				// Timeout, reject the event
+				q.logger.Debug("Timeout, event should be rejected by NATS")
+				continue
+			case q.channel <- event:
+				// The event was delivered to the consumer
+				fc.SentEvent()
+			}
 		}
 
 		if batch.Error() != nil {
@@ -164,7 +161,7 @@ func (q *Queue) pump(ctx context.Context) {
 
 // createEvent takes a NATS message, extracts the tracing information and
 // creates an Event that can be passed on to the subscriber.
-func (q *Queue) createEvent(ctx context.Context, msg *nats.Msg, onProcess func()) (*Event, error) {
+func (q *Queue) createEvent(ctx context.Context, msg *nats.Msg) (*Event, error) {
 	// We may have tracing information stored in the event headers, so we
 	// extract them and create our own span indicating that we received the
 	// message.
@@ -198,7 +195,7 @@ func (q *Queue) createEvent(ctx context.Context, msg *nats.Msg, onProcess func()
 	// Set the message ID as an attribute
 	span.SetAttributes(semconv.MessagingMessageID(fmt.Sprintf("%d", md.Sequence.Stream)))
 
-	event, err := newEvent(msgCtx, span, q.logger, *msg, md, onProcess)
+	event, err := newEvent(msgCtx, span, q.logger, *msg, md)
 	if err != nil {
 		q.logger.Error("failed to create event", zap.Error(err))
 		span.RecordError(err)

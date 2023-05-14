@@ -1144,11 +1144,6 @@ func (m *ConsumeRequest_Subscribe) MarshalToSizedBufferVT(dAtA []byte) (int, err
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if m.MaxPendingEvents != nil {
-		i = encodeVarint(dAtA, i, uint64(*m.MaxPendingEvents))
-		i--
-		dAtA[i] = 0x18
-	}
 	if len(m.Consumer) > 0 {
 		i -= len(m.Consumer)
 		copy(dAtA[i:], m.Consumer)
@@ -2545,9 +2540,6 @@ func (m *ConsumeRequest_Subscribe) SizeVT() (n int) {
 	l = len(m.Consumer)
 	if l > 0 {
 		n += 1 + l + sov(uint64(l))
-	}
-	if m.MaxPendingEvents != nil {
-		n += 1 + sov(uint64(*m.MaxPendingEvents))
 	}
 	n += len(m.unknownFields)
 	return n
@@ -4844,26 +4836,6 @@ func (m *ConsumeRequest_Subscribe) UnmarshalVT(dAtA []byte) error {
 			}
 			m.Consumer = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 3:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field MaxPendingEvents", wireType)
-			}
-			var v uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflow
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				v |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			m.MaxPendingEvents = &v
 		default:
 			iNdEx = preIndex
 			skippy, err := skip(dAtA[iNdEx:])

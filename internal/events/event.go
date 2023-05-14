@@ -26,10 +26,9 @@ type Headers struct {
 // Reject(shouldRetry) to acknowledge the event. If the deadline is exceeded,
 // the event will be redelivered. To extend the deadline, use Ping().
 type Event struct {
-	span      trace.Span
-	logger    *zap.Logger
-	msg       *nats.Msg
-	onProcess func()
+	span   trace.Span
+	logger *zap.Logger
+	msg    *nats.Msg
 
 	// Context is the context of this event. It will be valid until the event
 	// expires, is accepted or rejected.
@@ -60,7 +59,6 @@ func newEvent(
 	logger *zap.Logger,
 	msg nats.Msg,
 	md *nats.MsgMetadata,
-	onProcess func(),
 ) (*Event, error) {
 	// Unmarshal protobuf message from msg.Data
 	data := &anypb.Any{}
@@ -109,7 +107,6 @@ func newEvent(
 		span:            span,
 		logger:          logger,
 		msg:             &msg,
-		onProcess:       onProcess,
 		Context:         ctx,
 		Subject:         msg.Subject,
 		SubscriptionSeq: md.Sequence.Stream,
@@ -151,7 +148,6 @@ func (e *Event) Accept() error {
 		return errors.Wrap(err, "could not accept message")
 	}
 
-	e.onProcess()
 	e.span.SetStatus(codes.Ok, "")
 	return nil
 }
@@ -168,7 +164,6 @@ func (e *Event) Reject() error {
 		return errors.Wrap(err, "could not reject message")
 	}
 
-	e.onProcess()
 	e.span.SetStatus(codes.Error, "event rejected")
 	return nil
 }
@@ -186,7 +181,6 @@ func (e *Event) RejectWithDelay(delay time.Duration) error {
 		return errors.Wrap(err, "could not reject message")
 	}
 
-	e.onProcess()
 	e.span.SetStatus(codes.Error, "event rejected")
 	return nil
 }
@@ -204,7 +198,6 @@ func (e *Event) RejectPermanently() error {
 		return errors.Wrap(err, "could not permanently reject message")
 	}
 
-	e.onProcess()
 	e.span.SetStatus(codes.Error, "event permanently rejected")
 	return nil
 }
