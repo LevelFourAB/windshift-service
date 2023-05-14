@@ -299,13 +299,13 @@ var _ = Describe("Queue", func() {
 			defer queue2.Close()
 
 			for i := 0; i < 10; i++ {
-				msg, err := anypb.New(&emptypb.Empty{})
-				Expect(err).ToNot(HaveOccurred())
-				_, err = manager.Publish(ctx, &events.PublishConfig{
+				msg, err2 := anypb.New(&emptypb.Empty{})
+				Expect(err2).ToNot(HaveOccurred())
+				_, err2 = manager.Publish(ctx, &events.PublishConfig{
 					Subject: "events.test",
 					Data:    msg,
 				})
-				Expect(err).ToNot(HaveOccurred())
+				Expect(err2).ToNot(HaveOccurred())
 			}
 
 			eventsReceived := 0
@@ -314,12 +314,16 @@ var _ = Describe("Queue", func() {
 		_outer:
 			for {
 				select {
-				case <-queue1.Events():
+				case e := <-queue1.Events():
 					eventsReceived++
 					queue1EventsReceived++
-				case <-queue2.Events():
+					err = e.Accept()
+					Expect(err).ToNot(HaveOccurred())
+				case e := <-queue2.Events():
 					eventsReceived++
 					queue2EventsReceived++
+					err = e.Accept()
+					Expect(err).ToNot(HaveOccurred())
 				case <-time.After(500 * time.Millisecond):
 					break _outer
 				}

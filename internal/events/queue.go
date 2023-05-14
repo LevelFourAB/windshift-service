@@ -81,7 +81,7 @@ func (m *Manager) Subscribe(ctx context.Context, config *QueueConfig) (*Queue, e
 // pump is a helper function that will pump messages from the NATS subscription
 // into the channel.
 func (q *Queue) pump(ctx context.Context) {
-	fc := flowcontrol.NewFlowControl(500*time.Millisecond, 1, 50)
+	fc := flowcontrol.NewFlowControl(1*time.Second, 1, 50)
 	timeout := q.Timeout
 
 	for {
@@ -117,12 +117,25 @@ func (q *Queue) pump(ctx context.Context) {
 		}
 
 		for msg := range batch.Messages() {
-			event, err2 := q.createEvent(ctx, msg)
+			now := time.Now()
+			release := fc.AcquireSendLock()
+
+			if time.Since(now) > timeout {
+				// Timeout, reject the event
+				q.logger.Debug("Timeout, event should be rejected by NATS")
+				continue
+			}
+
+			event, err2 := q.createEvent(ctx, msg, release)
 			if err2 != nil {
 				continue
 			}
 
-			q.logger.Debug("Received event", zap.String("type", event.Data.TypeUrl))
+			q.logger.Debug(
+				"Received event",
+				zap.Uint64("streamSeq", event.StreamSeq),
+				zap.String("type", event.Data.TypeUrl),
+			)
 			select {
 			case <-ctx.Done():
 				// Shutting down, reject the event
@@ -132,13 +145,8 @@ func (q *Queue) pump(ctx context.Context) {
 					q.logger.Warn("failed to reject message", zap.Error(err2))
 				}
 				continue
-			case <-time.After(timeout):
-				// Timeout, reject the event
-				q.logger.Debug("Timeout, event should be rejected by NATS")
-				continue
 			case q.channel <- event:
 				// The event was delivered to the consumer
-				fc.SentEvent()
 			}
 		}
 
@@ -161,7 +169,7 @@ func (q *Queue) pump(ctx context.Context) {
 
 // createEvent takes a NATS message, extracts the tracing information and
 // creates an Event that can be passed on to the subscriber.
-func (q *Queue) createEvent(ctx context.Context, msg *nats.Msg) (*Event, error) {
+func (q *Queue) createEvent(ctx context.Context, msg *nats.Msg, onProcess func()) (*Event, error) {
 	// We may have tracing information stored in the event headers, so we
 	// extract them and create our own span indicating that we received the
 	// message.
@@ -195,7 +203,7 @@ func (q *Queue) createEvent(ctx context.Context, msg *nats.Msg) (*Event, error) 
 	// Set the message ID as an attribute
 	span.SetAttributes(semconv.MessagingMessageID(fmt.Sprintf("%d", md.Sequence.Stream)))
 
-	event, err := newEvent(msgCtx, span, q.logger, *msg, md)
+	event, err := newEvent(msgCtx, span, q.logger, *msg, md, onProcess)
 	if err != nil {
 		q.logger.Error("failed to create event", zap.Error(err))
 		span.RecordError(err)

@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package windshift.test.v1;
+
+message StringValue {
+	string value = 1;
+}
