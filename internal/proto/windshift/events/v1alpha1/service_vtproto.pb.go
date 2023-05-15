@@ -46,8 +46,8 @@ type EventsServiceClient interface {
 	// Publish an event.
 	PublishEvent(ctx context.Context, in *PublishEventRequest, opts ...grpc.CallOption) (*PublishEventResponse, error)
 	// Consume subscribes to events and returns them as they are published. The
-	// stream is bidirectional, so the client can accept/reject events as they
-	// are received.
+	// stream is bidirectional, so the client can acknowledge/reject events as
+	// they are received.
 	Consume(ctx context.Context, opts ...grpc.CallOption) (EventsService_ConsumeClient, error)
 }
 
@@ -141,8 +141,8 @@ type EventsServiceServer interface {
 	// Publish an event.
 	PublishEvent(context.Context, *PublishEventRequest) (*PublishEventResponse, error)
 	// Consume subscribes to events and returns them as they are published. The
-	// stream is bidirectional, so the client can accept/reject events as they
-	// are received.
+	// stream is bidirectional, so the client can acknowledge/reject events as
+	// they are received.
 	Consume(EventsService_ConsumeServer) error
 	mustEmbedUnimplementedEventsServiceServer()
 }
@@ -802,8 +802,8 @@ func (m *EnsureConsumerRequest) MarshalToSizedBufferVT(dAtA []byte) (int, error)
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if m.Timeout != nil {
-		if vtmsg, ok := interface{}(m.Timeout).(interface {
+	if m.ProcessingTimeout != nil {
+		if vtmsg, ok := interface{}(m.ProcessingTimeout).(interface {
 			MarshalToSizedBufferVT([]byte) (int, error)
 		}); ok {
 			size, err := vtmsg.MarshalToSizedBufferVT(dAtA[:i])
@@ -813,7 +813,7 @@ func (m *EnsureConsumerRequest) MarshalToSizedBufferVT(dAtA []byte) (int, error)
 			i -= size
 			i = encodeVarint(dAtA, i, uint64(size))
 		} else {
-			encoded, err := proto.Marshal(m.Timeout)
+			encoded, err := proto.Marshal(m.ProcessingTimeout)
 			if err != nil {
 				return 0, err
 			}
@@ -1161,7 +1161,7 @@ func (m *ConsumeRequest_Subscribe) MarshalToSizedBufferVT(dAtA []byte) (int, err
 	return len(dAtA) - i, nil
 }
 
-func (m *ConsumeRequest_Accept) MarshalVT() (dAtA []byte, err error) {
+func (m *ConsumeRequest_Ack) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -1174,12 +1174,12 @@ func (m *ConsumeRequest_Accept) MarshalVT() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ConsumeRequest_Accept) MarshalToVT(dAtA []byte) (int, error) {
+func (m *ConsumeRequest_Ack) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeRequest_Accept) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *ConsumeRequest_Ack) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m == nil {
 		return 0, nil
 	}
@@ -1413,15 +1413,15 @@ func (m *ConsumeRequest_Subscribe_) MarshalToSizedBufferVT(dAtA []byte) (int, er
 	}
 	return len(dAtA) - i, nil
 }
-func (m *ConsumeRequest_Accept_) MarshalToVT(dAtA []byte) (int, error) {
+func (m *ConsumeRequest_Ack_) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeRequest_Accept_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *ConsumeRequest_Ack_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	i := len(dAtA)
-	if m.Accept != nil {
-		size, err := m.Accept.MarshalToSizedBufferVT(dAtA[:i])
+	if m.Ack != nil {
+		size, err := m.Ack.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -1500,10 +1500,32 @@ func (m *ConsumeResponse_Subscribed) MarshalToSizedBufferVT(dAtA []byte) (int, e
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
+	if m.ProcessingTimeout != nil {
+		if vtmsg, ok := interface{}(m.ProcessingTimeout).(interface {
+			MarshalToSizedBufferVT([]byte) (int, error)
+		}); ok {
+			size, err := vtmsg.MarshalToSizedBufferVT(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarint(dAtA, i, uint64(size))
+		} else {
+			encoded, err := proto.Marshal(m.ProcessingTimeout)
+			if err != nil {
+				return 0, err
+			}
+			i -= len(encoded)
+			copy(dAtA[i:], encoded)
+			i = encodeVarint(dAtA, i, uint64(len(encoded)))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
 	return len(dAtA) - i, nil
 }
 
-func (m *ConsumeResponse_AcceptConfirmation) MarshalVT() (dAtA []byte, err error) {
+func (m *ConsumeResponse_AckConfirmation) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -1516,12 +1538,12 @@ func (m *ConsumeResponse_AcceptConfirmation) MarshalVT() (dAtA []byte, err error
 	return dAtA[:n], nil
 }
 
-func (m *ConsumeResponse_AcceptConfirmation) MarshalToVT(dAtA []byte) (int, error) {
+func (m *ConsumeResponse_AckConfirmation) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeResponse_AcceptConfirmation) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *ConsumeResponse_AckConfirmation) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m == nil {
 		return 0, nil
 	}
@@ -1862,15 +1884,15 @@ func (m *ConsumeResponse_Subscribed_) MarshalToSizedBufferVT(dAtA []byte) (int, 
 	}
 	return len(dAtA) - i, nil
 }
-func (m *ConsumeResponse_AcceptConfirmation_) MarshalToVT(dAtA []byte) (int, error) {
+func (m *ConsumeResponse_AckConfirmation_) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeResponse_AcceptConfirmation_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *ConsumeResponse_AckConfirmation_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	i := len(dAtA)
-	if m.AcceptConfirmation != nil {
-		size, err := m.AcceptConfirmation.MarshalToSizedBufferVT(dAtA[:i])
+	if m.AckConfirmation != nil {
+		size, err := m.AckConfirmation.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -2417,13 +2439,13 @@ func (m *EnsureConsumerRequest) SizeVT() (n int) {
 		l = m.Pointer.SizeVT()
 		n += 1 + l + sov(uint64(l))
 	}
-	if m.Timeout != nil {
-		if size, ok := interface{}(m.Timeout).(interface {
+	if m.ProcessingTimeout != nil {
+		if size, ok := interface{}(m.ProcessingTimeout).(interface {
 			SizeVT() int
 		}); ok {
 			l = size.SizeVT()
 		} else {
-			l = proto.Size(m.Timeout)
+			l = proto.Size(m.ProcessingTimeout)
 		}
 		n += 1 + l + sov(uint64(l))
 	}
@@ -2545,7 +2567,7 @@ func (m *ConsumeRequest_Subscribe) SizeVT() (n int) {
 	return n
 }
 
-func (m *ConsumeRequest_Accept) SizeVT() (n int) {
+func (m *ConsumeRequest_Ack) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2634,14 +2656,14 @@ func (m *ConsumeRequest_Subscribe_) SizeVT() (n int) {
 	}
 	return n
 }
-func (m *ConsumeRequest_Accept_) SizeVT() (n int) {
+func (m *ConsumeRequest_Ack_) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if m.Accept != nil {
-		l = m.Accept.SizeVT()
+	if m.Ack != nil {
+		l = m.Ack.SizeVT()
 		n += 1 + l + sov(uint64(l))
 	}
 	return n
@@ -2676,11 +2698,21 @@ func (m *ConsumeResponse_Subscribed) SizeVT() (n int) {
 	}
 	var l int
 	_ = l
+	if m.ProcessingTimeout != nil {
+		if size, ok := interface{}(m.ProcessingTimeout).(interface {
+			SizeVT() int
+		}); ok {
+			l = size.SizeVT()
+		} else {
+			l = proto.Size(m.ProcessingTimeout)
+		}
+		n += 1 + l + sov(uint64(l))
+	}
 	n += len(m.unknownFields)
 	return n
 }
 
-func (m *ConsumeResponse_AcceptConfirmation) SizeVT() (n int) {
+func (m *ConsumeResponse_AckConfirmation) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2810,14 +2842,14 @@ func (m *ConsumeResponse_Subscribed_) SizeVT() (n int) {
 	}
 	return n
 }
-func (m *ConsumeResponse_AcceptConfirmation_) SizeVT() (n int) {
+func (m *ConsumeResponse_AckConfirmation_) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if m.AcceptConfirmation != nil {
-		l = m.AcceptConfirmation.SizeVT()
+	if m.AckConfirmation != nil {
+		l = m.AckConfirmation.SizeVT()
 		n += 1 + l + sov(uint64(l))
 	}
 	return n
@@ -4136,7 +4168,7 @@ func (m *EnsureConsumerRequest) UnmarshalVT(dAtA []byte) error {
 			iNdEx = postIndex
 		case 5:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Timeout", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field ProcessingTimeout", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -4163,17 +4195,17 @@ func (m *EnsureConsumerRequest) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Timeout == nil {
-				m.Timeout = &durationpb.Duration{}
+			if m.ProcessingTimeout == nil {
+				m.ProcessingTimeout = &durationpb.Duration{}
 			}
-			if unmarshal, ok := interface{}(m.Timeout).(interface {
+			if unmarshal, ok := interface{}(m.ProcessingTimeout).(interface {
 				UnmarshalVT([]byte) error
 			}); ok {
 				if err := unmarshal.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
 			} else {
-				if err := proto.Unmarshal(dAtA[iNdEx:postIndex], m.Timeout); err != nil {
+				if err := proto.Unmarshal(dAtA[iNdEx:postIndex], m.ProcessingTimeout); err != nil {
 					return err
 				}
 			}
@@ -4858,7 +4890,7 @@ func (m *ConsumeRequest_Subscribe) UnmarshalVT(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ConsumeRequest_Accept) UnmarshalVT(dAtA []byte) error {
+func (m *ConsumeRequest_Ack) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -4881,10 +4913,10 @@ func (m *ConsumeRequest_Accept) UnmarshalVT(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ConsumeRequest_Accept: wiretype end group for non-group")
+			return fmt.Errorf("proto: ConsumeRequest_Ack: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ConsumeRequest_Accept: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: ConsumeRequest_Ack: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -5376,7 +5408,7 @@ func (m *ConsumeRequest) UnmarshalVT(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Accept", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Ack", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -5403,16 +5435,16 @@ func (m *ConsumeRequest) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if oneof, ok := m.Request.(*ConsumeRequest_Accept_); ok {
-				if err := oneof.Accept.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if oneof, ok := m.Request.(*ConsumeRequest_Ack_); ok {
+				if err := oneof.Ack.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
 			} else {
-				v := &ConsumeRequest_Accept{}
+				v := &ConsumeRequest_Ack{}
 				if err := v.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
-				m.Request = &ConsumeRequest_Accept_{Accept: v}
+				m.Request = &ConsumeRequest_Ack_{Ack: v}
 			}
 			iNdEx = postIndex
 		case 3:
@@ -5548,6 +5580,50 @@ func (m *ConsumeResponse_Subscribed) UnmarshalVT(dAtA []byte) error {
 			return fmt.Errorf("proto: ConsumeResponse_Subscribed: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ProcessingTimeout", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.ProcessingTimeout == nil {
+				m.ProcessingTimeout = &durationpb.Duration{}
+			}
+			if unmarshal, ok := interface{}(m.ProcessingTimeout).(interface {
+				UnmarshalVT([]byte) error
+			}); ok {
+				if err := unmarshal.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+					return err
+				}
+			} else {
+				if err := proto.Unmarshal(dAtA[iNdEx:postIndex], m.ProcessingTimeout); err != nil {
+					return err
+				}
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skip(dAtA[iNdEx:])
@@ -5570,7 +5646,7 @@ func (m *ConsumeResponse_Subscribed) UnmarshalVT(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ConsumeResponse_AcceptConfirmation) UnmarshalVT(dAtA []byte) error {
+func (m *ConsumeResponse_AckConfirmation) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -5593,10 +5669,10 @@ func (m *ConsumeResponse_AcceptConfirmation) UnmarshalVT(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ConsumeResponse_AcceptConfirmation: wiretype end group for non-group")
+			return fmt.Errorf("proto: ConsumeResponse_AckConfirmation: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ConsumeResponse_AcceptConfirmation: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: ConsumeResponse_AckConfirmation: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -6520,7 +6596,7 @@ func (m *ConsumeResponse) UnmarshalVT(dAtA []byte) error {
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AcceptConfirmation", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field AckConfirmation", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -6547,16 +6623,16 @@ func (m *ConsumeResponse) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if oneof, ok := m.Response.(*ConsumeResponse_AcceptConfirmation_); ok {
-				if err := oneof.AcceptConfirmation.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if oneof, ok := m.Response.(*ConsumeResponse_AckConfirmation_); ok {
+				if err := oneof.AckConfirmation.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
 			} else {
-				v := &ConsumeResponse_AcceptConfirmation{}
+				v := &ConsumeResponse_AckConfirmation{}
 				if err := v.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
-				m.Response = &ConsumeResponse_AcceptConfirmation_{AcceptConfirmation: v}
+				m.Response = &ConsumeResponse_AckConfirmation_{AckConfirmation: v}
 			}
 			iNdEx = postIndex
 		case 4:

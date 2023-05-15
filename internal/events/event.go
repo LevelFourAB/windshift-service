@@ -22,7 +22,7 @@ type Headers struct {
 }
 
 // Event represents a single event from the event queue. It is received via
-// NATS and should be processed within a certain deadline, using Accept() or
+// NATS and should be processed within a certain deadline, using Ack() or
 // Reject(shouldRetry) to acknowledge the event. If the deadline is exceeded,
 // the event will be redelivered. To extend the deadline, use Ping().
 type Event struct {
@@ -32,7 +32,7 @@ type Event struct {
 	onProcess func()
 
 	// Context is the context of this event. It will be valid until the event
-	// expires, is accepted or rejected.
+	// expires, is acknowledged or rejected.
 	Context context.Context
 
 	// Subject is the subject the event was published to.
@@ -120,7 +120,7 @@ func newEvent(
 }
 
 // DiscardData discards the data of the event. This should be called if the
-// event data is not needed anymore. Accepting or rejecting the event will
+// event data is not needed anymore. Acknowledging or rejecting the event will
 // continue working after this.
 func (e *Event) DiscardData() {
 	e.Data = nil
@@ -140,15 +140,15 @@ func (e *Event) Ping() error {
 	return nil
 }
 
-// Accept accepts the event. The event will be removed from the queue.
-func (e *Event) Accept() error {
+// Ack acknowledges the event. The event will be removed from the queue.
+func (e *Event) Ack() error {
 	defer e.span.End()
 
-	e.logger.Debug("Accepting event", zap.Uint64("streamSeq", e.StreamSeq))
+	e.logger.Debug("Acknowledging event", zap.Uint64("streamSeq", e.StreamSeq))
 	err := e.msg.Ack()
 	if err != nil {
 		e.span.RecordError(err)
-		return errors.Wrap(err, "could not accept message")
+		return errors.Wrap(err, "could not acknowledge message")
 	}
 
 	e.span.SetStatus(codes.Ok, "")

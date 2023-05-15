@@ -107,8 +107,8 @@ var _ = Describe("Events", func() {
 		})
 	})
 
-	Describe("Accepting and rejecting events", func() {
-		It("can accept received event", NodeTimeout(5*time.Second), func(ctx context.Context) {
+	Describe("Acknowledging and rejecting events", func() {
+		It("can acknowledge received event", NodeTimeout(5*time.Second), func(ctx context.Context) {
 			s, err := service.EnsureConsumer(ctx, &eventsv1alpha1.EnsureConsumerRequest{
 				Stream: "events",
 				Subjects: []string{
@@ -154,28 +154,28 @@ var _ = Describe("Events", func() {
 
 			eventID := in.GetEvent().GetId()
 
-			// Accept the event
+			// Acknowledge the event
 			err = client.Send(&eventsv1alpha1.ConsumeRequest{
-				Request: &eventsv1alpha1.ConsumeRequest_Accept_{
-					Accept: &eventsv1alpha1.ConsumeRequest_Accept{
+				Request: &eventsv1alpha1.ConsumeRequest_Ack_{
+					Ack: &eventsv1alpha1.ConsumeRequest_Ack{
 						Ids: []uint64{eventID},
 					},
 				},
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			// Check that we get the accepted response
+			// Check that we get the acknowledged response
 			in, err = client.Recv()
 			Expect(err).ToNot(HaveOccurred())
-			if r, ok := in.Response.(*eventsv1alpha1.ConsumeResponse_AcceptConfirmation_); ok {
-				Expect(r.AcceptConfirmation.Ids).To(Equal([]uint64{eventID}))
+			if r, ok := in.Response.(*eventsv1alpha1.ConsumeResponse_AckConfirmation_); ok {
+				Expect(r.AckConfirmation.Ids).To(Equal([]uint64{eventID}))
 			} else {
 
-				Fail("expected AcceptConfirmation message")
+				Fail("expected AckConfiramtion message")
 			}
 		})
 
-		It("accepting unknown event fails", NodeTimeout(5*time.Second), func(ctx context.Context) {
+		It("acknowledging unknown event fails", NodeTimeout(5*time.Second), func(ctx context.Context) {
 			s, err := service.EnsureConsumer(ctx, &eventsv1alpha1.EnsureConsumerRequest{
 				Stream: "events",
 				Subjects: []string{
@@ -205,28 +205,28 @@ var _ = Describe("Events", func() {
 				Fail("expected Subscribed message")
 			}
 
-			// Accept a non-existent event
+			// Acknowledge a non-existent event
 			err = client.Send(&eventsv1alpha1.ConsumeRequest{
-				Request: &eventsv1alpha1.ConsumeRequest_Accept_{
-					Accept: &eventsv1alpha1.ConsumeRequest_Accept{
+				Request: &eventsv1alpha1.ConsumeRequest_Ack_{
+					Ack: &eventsv1alpha1.ConsumeRequest_Ack{
 						Ids: []uint64{1},
 					},
 				},
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			// Check that we get the accepted response
+			// Check that we get the acknowledge response
 			in, err = client.Recv()
 			Expect(err).ToNot(HaveOccurred())
-			if r, ok := in.Response.(*eventsv1alpha1.ConsumeResponse_AcceptConfirmation_); ok {
-				Expect(r.AcceptConfirmation.InvalidIds).To(Equal([]uint64{1}))
+			if r, ok := in.Response.(*eventsv1alpha1.ConsumeResponse_AckConfirmation_); ok {
+				Expect(r.AckConfirmation.InvalidIds).To(Equal([]uint64{1}))
 			} else {
 
-				Fail("expected AcceptConfirmation message")
+				Fail("expected AckConfiramtion message")
 			}
 		})
 
-		It("accepting received event twice fails", NodeTimeout(5*time.Second), func(ctx context.Context) {
+		It("acknowledging received event twice fails", NodeTimeout(5*time.Second), func(ctx context.Context) {
 			s, err := service.EnsureConsumer(ctx, &eventsv1alpha1.EnsureConsumerRequest{
 				Stream: "events",
 				Subjects: []string{
@@ -272,10 +272,10 @@ var _ = Describe("Events", func() {
 
 			eventID := in.GetEvent().GetId()
 
-			// Accept the event
+			// Acknowledge the event
 			err = client.Send(&eventsv1alpha1.ConsumeRequest{
-				Request: &eventsv1alpha1.ConsumeRequest_Accept_{
-					Accept: &eventsv1alpha1.ConsumeRequest_Accept{
+				Request: &eventsv1alpha1.ConsumeRequest_Ack_{
+					Ack: &eventsv1alpha1.ConsumeRequest_Ack{
 						Ids: []uint64{eventID},
 					},
 				},
@@ -286,21 +286,21 @@ var _ = Describe("Events", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			err = client.Send(&eventsv1alpha1.ConsumeRequest{
-				Request: &eventsv1alpha1.ConsumeRequest_Accept_{
-					Accept: &eventsv1alpha1.ConsumeRequest_Accept{
+				Request: &eventsv1alpha1.ConsumeRequest_Ack_{
+					Ack: &eventsv1alpha1.ConsumeRequest_Ack{
 						Ids: []uint64{eventID},
 					},
 				},
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			// Check that we get the accepted response
+			// Check that we get the acknowledged response
 			in, err = client.Recv()
 			Expect(err).ToNot(HaveOccurred())
-			if r, ok := in.Response.(*eventsv1alpha1.ConsumeResponse_AcceptConfirmation_); ok {
-				Expect(r.AcceptConfirmation.InvalidIds).To(Equal([]uint64{eventID}))
+			if r, ok := in.Response.(*eventsv1alpha1.ConsumeResponse_AckConfirmation_); ok {
+				Expect(r.AckConfirmation.InvalidIds).To(Equal([]uint64{eventID}))
 			} else {
-				Fail("expected AcceptConfirmation message")
+				Fail("expected AckConfirmation message")
 			}
 		})
 

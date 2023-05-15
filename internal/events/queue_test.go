@@ -262,7 +262,7 @@ var _ = Describe("Queue", func() {
 			case event := <-queue.Events():
 				Expect(event).ToNot(BeNil())
 
-				err = event.Accept()
+				err = event.Ack()
 				Expect(err).ToNot(HaveOccurred())
 
 				// Check that we have the correct message
@@ -317,12 +317,12 @@ var _ = Describe("Queue", func() {
 				case e := <-queue1.Events():
 					eventsReceived++
 					queue1EventsReceived++
-					err = e.Accept()
+					err = e.Ack()
 					Expect(err).ToNot(HaveOccurred())
 				case e := <-queue2.Events():
 					eventsReceived++
 					queue2EventsReceived++
-					err = e.Accept()
+					err = e.Ack()
 					Expect(err).ToNot(HaveOccurred())
 				case <-time.After(500 * time.Millisecond):
 					break _outer
@@ -429,7 +429,7 @@ var _ = Describe("Queue", func() {
 			}
 		})
 
-		It("accepting event stops delivery", func(ctx context.Context) {
+		It("acknowledging event stops delivery", func(ctx context.Context) {
 			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Name:   "test",
@@ -459,7 +459,7 @@ var _ = Describe("Queue", func() {
 			case event := <-queue.Events():
 				Expect(event).ToNot(BeNil())
 
-				err = event.Accept()
+				err = event.Ack()
 				Expect(err).ToNot(HaveOccurred())
 			case <-time.After(200 * time.Millisecond):
 				Fail("no event received")
@@ -473,7 +473,7 @@ var _ = Describe("Queue", func() {
 			}
 		})
 
-		It("can accept event after discarding data", func(ctx context.Context) {
+		It("can acknowledge event after discarding data", func(ctx context.Context) {
 			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Name:   "test",
@@ -504,7 +504,7 @@ var _ = Describe("Queue", func() {
 				Expect(event).ToNot(BeNil())
 
 				event.DiscardData()
-				err = event.Accept()
+				err = event.Ack()
 				Expect(err).ToNot(HaveOccurred())
 			case <-time.After(200 * time.Millisecond):
 				Fail("no event received")
@@ -558,7 +558,7 @@ var _ = Describe("Queue", func() {
 			case event := <-queue.Events():
 				Expect(event).ToNot(BeNil())
 
-				err = event.Accept()
+				err = event.Ack()
 				Expect(err).ToNot(HaveOccurred())
 
 				// Check that we have the correct message
@@ -611,7 +611,7 @@ var _ = Describe("Queue", func() {
 			case event := <-queue.Events():
 				Expect(event).ToNot(BeNil())
 
-				err = event.Accept()
+				err = event.Ack()
 				Expect(err).ToNot(HaveOccurred())
 			case <-time.After(200 * time.Millisecond):
 				Fail("no event received")
@@ -707,7 +707,7 @@ var _ = Describe("Queue", func() {
 			case event := <-queue.Events():
 				Expect(event).ToNot(BeNil())
 
-				err = event.Accept()
+				err = event.Ack()
 				Expect(err).ToNot(HaveOccurred())
 
 				// Check that we have the correct message

@@ -14,8 +14,8 @@ building distributed event-driven systems.
   - 📤 Publish events to subjects, with idempotency and OpenTelemetry tracing
   - 📥 Durable consumers with distributed processing
   - 🕒 Ephemeral consumers for one off event processing
-  - 🔄 Automatic redelivery of failed events, events can be accepted or rejected
-    by consumers
+  - 🔄 Automatic redelivery of failed events, events can be acknowledge or
+    rejected by consumers
   - 🔔 Ability to extend processing time by pinging events
 - 🔍 Observability via OpenTelemetry tracing
 
@@ -123,15 +123,15 @@ stream.Send(windowshift.events.v1alpha1.ConsumeRequest{
 event = stream.Recv()
 ```
 
-Events need to be accepted or rejected by sending an `Accept` or `Reject` to
-the stream. If an event is not accepted or rejected within the configured
+Events need to be acknowledge or rejected by sending an `Ack` or `Reject` to
+the stream. If an event is not acknowledge or rejected within the configured
 consumer timeout, it will be redelivered.
 
 Example in pseudo-code:
 
 ```typescript
 stream.Send(windshift.events.v1alpha1.ConsumeRequest{
-  accept: &windshift.events.v1alpha1.ConsumeRequest.Accept{
+  ack: &windshift.events.v1alpha1.ConsumeRequest.Ack{
     ids: [ event.id ],
   }
 })
@@ -140,7 +140,7 @@ stream.Send(windshift.events.v1alpha1.ConsumeRequest{
 If more time is needed to process an event, a `Ping` can be sent to the stream.
 This will extend the timeout for the event.
 
-The server will respond with confirmations to `Accept`, `Reject` and `Ping`
+The server will respond with confirmations to `Ack`, `Reject` and `Ping`
 messages. These confirmations contain information about if the message was
 processed successfully, or if it failed.
 

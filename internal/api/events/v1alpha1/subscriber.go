@@ -9,6 +9,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -37,7 +38,9 @@ func (e *EventsServiceServer) Consume(server eventsv1alpha1.EventsService_Consum
 	// Send initial response
 	err = server.Send(&eventsv1alpha1.ConsumeResponse{
 		Response: &eventsv1alpha1.ConsumeResponse_Subscribed_{
-			Subscribed: &eventsv1alpha1.ConsumeResponse_Subscribed{},
+			Subscribed: &eventsv1alpha1.ConsumeResponse_Subscribed{
+				ProcessingTimeout: durationpb.New(queue.Timeout),
+			},
 		},
 	})
 	if err != nil {
@@ -113,8 +116,8 @@ func (e *EventsServiceServer) Consume(server eventsv1alpha1.EventsService_Consum
 			switch r := request.Request.(type) {
 			case *eventsv1alpha1.ConsumeRequest_Subscribe_:
 				return errors.New("cannot subscribe again")
-			case *eventsv1alpha1.ConsumeRequest_Accept_:
-				err = e.handleAccept(server, eventMap, r)
+			case *eventsv1alpha1.ConsumeRequest_Ack_:
+				err = e.handleAck(server, eventMap, r)
 				if err != nil {
 					return err
 				}
@@ -133,12 +136,12 @@ func (e *EventsServiceServer) Consume(server eventsv1alpha1.EventsService_Consum
 	}
 }
 
-func (e *EventsServiceServer) handleAccept(
+func (e *EventsServiceServer) handleAck(
 	server eventsv1alpha1.EventsService_ConsumeServer,
 	eventMap eventTracker,
-	r *eventsv1alpha1.ConsumeRequest_Accept_,
+	r *eventsv1alpha1.ConsumeRequest_Ack_,
 ) error {
-	ids := r.Accept.Ids
+	ids := r.Ack.Ids
 
 	processedIds := make([]uint64, 0, len(ids))
 	invalidIds := make([]uint64, 0, len(ids))
@@ -146,7 +149,7 @@ func (e *EventsServiceServer) handleAccept(
 	for _, id := range ids {
 		event := eventMap.Get(id)
 		if event != nil {
-			err := event.Accept()
+			err := event.Ack()
 			if err != nil {
 				if errors.Is(err, nats.ErrInvalidJSAck) || errors.Is(err, nats.ErrMsgAlreadyAckd) {
 					invalidIds = append(invalidIds, id)
@@ -165,8 +168,8 @@ func (e *EventsServiceServer) handleAccept(
 	}
 
 	err := server.Send(&eventsv1alpha1.ConsumeResponse{
-		Response: &eventsv1alpha1.ConsumeResponse_AcceptConfirmation_{
-			AcceptConfirmation: &eventsv1alpha1.ConsumeResponse_AcceptConfirmation{
+		Response: &eventsv1alpha1.ConsumeResponse_AckConfirmation_{
+			AckConfirmation: &eventsv1alpha1.ConsumeResponse_AckConfirmation{
 				Ids:                processedIds,
 				InvalidIds:         invalidIds,
 				TemporaryFailedIds: temporaryErrors,
@@ -174,7 +177,7 @@ func (e *EventsServiceServer) handleAccept(
 		},
 	})
 	if err != nil {
-		return errors.Wrap(err, "could not send accept confirmation")
+		return errors.Wrap(err, "could not send acknowledge confirmation")
 	}
 
 	return nil
@@ -260,6 +263,7 @@ func (e *EventsServiceServer) handlePing(
 				}
 			} else {
 				processedIds = append(processedIds, id)
+				eventMap.MarkPinged(id)
 			}
 		} else {
 			invalidIds = append(invalidIds, id)

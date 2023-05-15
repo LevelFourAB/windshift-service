@@ -23,8 +23,8 @@ service EventsService {
 	rpc PublishEvent(PublishEventRequest) returns (PublishEventResponse) {}
 
 	// Consume subscribes to events and returns them as they are published. The
-	// stream is bidirectional, so the client can accept/reject events as they
-	// are received.
+	// stream is bidirectional, so the client can acknowledge/reject events as
+	// they are received.
 	rpc Consume(stream ConsumeRequest) returns (stream ConsumeResponse) {}
 }
 
@@ -151,10 +151,10 @@ message EnsureConsumerRequest {
 	// The timeout for events, after which they will be resent. If not
 	// provided a 30 second timeout will be used.
 	//
-	// Events will need to be accepted, rejected or pinged before the
+	// Events will need to be acknowledged, rejected or pinged before the
 	// timeout expires, otherwise they will be marked as failed and queued
 	// for delivery again.
-	optional google.protobuf.Duration timeout = 5;
+	optional google.protobuf.Duration processing_timeout = 5;
 }
 
 message EnsureConsumerResponse {
@@ -195,13 +195,13 @@ message PublishEventResponse {
 	uint64 id = 1;
 }
 
-// Request to subscribe to events or to accept, reject or ping events.
+// Request to subscribe to events or to acknowledge, reject or ping events.
 // The first message sent on the stream must be a Subscribe message, after
-// which the client can send Accept, Reject or Ping messages.
+// which the client can send Ack, Reject or Ping messages.
 //
-// Events should be either accepted or rejected, otherwise they will be resent
-// after a timeout. If processing takes of an event takes a while pings should
-// be sent to indicate that the event is still being processed.
+// Events should be either acknowledge or rejected, otherwise they will be
+// resent after a timeout. If processing takes of an event takes a while pings
+// should be sent to indicate that the event is still being processed.
 message ConsumeRequest {
 	// Subscribe to events, must be sent as the first message in the stream.
 	message Subscribe {
@@ -212,9 +212,9 @@ message ConsumeRequest {
 		string consumer = 2;
 	}
 
-	// Accept indicates that some events have been successfully processed.
-	message Accept {
-		// The identifiers to accept.
+	// Ack indicates that some events have been successfully processed.
+	message Ack {
+		// The identifiers to acknowledge.
 		repeated uint64 ids = 1;
 	}
 
@@ -242,7 +242,7 @@ message ConsumeRequest {
 		// to establish what events to listen to.
 		Subscribe subscribe = 1;
 		// Acknowledge that some events have been successfully processed.
-		Accept accept = 2;
+		Ack ack = 2;
 		// Acknowledge that some events have failed to be processed.
 		Reject reject = 3;
 		// Ping events to indicate that they are still being processed.
@@ -252,13 +252,18 @@ message ConsumeRequest {
 
 message ConsumeResponse {
 	// Confirmation that the client has subscribed to events.
-	message Subscribed {}
+	message Subscribed {
+		// The timeout for events, after which they will be resent if not
+		// acknowledged or rejected. Can be used by the client to implements
+		// features such as pings.
+		google.protobuf.Duration processing_timeout = 1;
+	}
 
-	// Confirmation that some events were accepted.
-	message AcceptConfirmation {
-		// The identifiers that were accepted.
+	// Confirmation that some events were acknowledged.
+	message AckConfirmation {
+		// The identifiers that were acknowledged.
 		repeated uint64 ids = 1;
-		// Identifiers that were invalid, such as already being accepted or
+		// Identifiers that were invalid, such as already being acknowledged or
 		// rejected, should not be retried by the client.
 		repeated uint64 invalid_ids = 2;
 		// Identifiers that could not be processed temporarily, should be
@@ -270,7 +275,7 @@ message ConsumeResponse {
 	message RejectConfirmation {
 		// The identifiers that were rejected.
 		repeated uint64 ids = 1;
-		// Identifiers that were invalid, such as already being accepted or
+		// Identifiers that were invalid, such as already being acknowledged or
 		// rejected, should not be retried by the client.
 		repeated uint64 invalid_ids = 2;
 		// Identifiers that could not be processed temporarily, should be
@@ -282,7 +287,7 @@ message ConsumeResponse {
 	message PingConfirmation {
 		// The identifiers of the events that are currently being processed.
 		repeated uint64 ids = 1;
-		// Identifiers that were invalid, such as already being accepted or
+		// Identifiers that were invalid, such as already being acknowledged or
 		// rejected, should not be retried by the client.
 		repeated uint64 invalid_ids = 2;
 		// Identifiers that could not be processed temporarily, should be
@@ -296,8 +301,8 @@ message ConsumeResponse {
 
 		// Confirmation that the client has subscribed to events.
 		Subscribed subscribed = 2;
-		// Confirmation that some events were accepted.
-		AcceptConfirmation accept_confirmation = 3;
+		// Confirmation that some events were acknowledged.
+		AckConfirmation ack_confirmation = 3;
 		// Confirmation that some events were rejected.
 		RejectConfirmation reject_confirmation = 4;
 		// Confirmation that a ping was received.
@@ -321,8 +326,8 @@ message StreamPointer {
 
 // An event that was published.
 message Event {
-	// Identifier of the event, used to accept, reject or ping the event. Can
-	// also be used to resume processing of events if using an ephemeral
+	// Identifier of the event, used to acknowledge, reject or ping the event.
+	// Can also be used to resume processing of events if using an ephemeral
 	// subscriber.
 	uint64 id = 1;
 	// The subject of this event.

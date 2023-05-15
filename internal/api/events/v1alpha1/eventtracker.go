@@ -13,7 +13,7 @@ type eventTrackerEntry struct {
 
 // eventTracker is a map of stream sequence numbers to events. It is used in
 // Consume handler to track events sent to the client that have not yet been
-// accepted or rejected.
+// acknowledged or rejected.
 type eventTracker map[uint64]*eventTrackerEntry
 
 func newEventTracker() eventTracker {
@@ -25,6 +25,12 @@ func (e eventTracker) Add(event *events.Event) {
 	e[event.StreamSeq] = &eventTrackerEntry{
 		addedAt: time.Now(),
 		event:   event,
+	}
+}
+
+func (e eventTracker) MarkPinged(streamSeq uint64) {
+	if entry, ok := e[streamSeq]; ok {
+		entry.addedAt = time.Now()
 	}
 }
 

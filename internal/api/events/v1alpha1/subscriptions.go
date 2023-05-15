@@ -16,8 +16,8 @@ func (e *EventsServiceServer) EnsureConsumer(ctx context.Context, req *eventsv1a
 		config.Name = *req.Name
 	}
 
-	if req.Timeout != nil {
-		config.Timeout = req.Timeout.AsDuration()
+	if req.ProcessingTimeout != nil {
+		config.Timeout = req.ProcessingTimeout.AsDuration()
 	}
 
 	if req.Pointer != nil {
