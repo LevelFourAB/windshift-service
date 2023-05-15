@@ -1,6 +1,9 @@
 package flowcontrol
 
-import "sync"
+import (
+	"sync"
+	"sync/atomic"
+)
 
 type DynamicSemaphore struct {
 	lock  sync.Mutex
@@ -18,20 +21,53 @@ func NewDynamicSemaphore(limit int) *DynamicSemaphore {
 	return ds
 }
 
-func (ds *DynamicSemaphore) Acquire() {
+// Acquire acquires a permit in the semaphore, will block until the permit is
+// available. Returns a function that releases the permit.
+func (ds *DynamicSemaphore) Acquire() func() {
 	ds.lock.Lock()
 	defer ds.lock.Unlock()
 	for ds.count >= ds.limit {
 		ds.cond.Wait()
 	}
 	ds.count++
+
+	released := uint32(0)
+	return func() {
+		if atomic.CompareAndSwapUint32(&released, 0, 1) {
+			ds.lock.Lock()
+			defer ds.lock.Unlock()
+			ds.count--
+			ds.cond.Broadcast()
+		}
+	}
 }
 
-func (ds *DynamicSemaphore) Release() {
+// TryAcquire acquires a permit in the semaphore if one is available. Returns a
+// function that releases the permit or nil if no permit was available.
+func (ds *DynamicSemaphore) TryAcquire() func() {
 	ds.lock.Lock()
 	defer ds.lock.Unlock()
-	ds.count--
-	ds.cond.Broadcast()
+	if ds.count >= ds.limit {
+		return nil
+	}
+	ds.count++
+
+	released := uint32(0)
+	return func() {
+		if atomic.CompareAndSwapUint32(&released, 0, 1) {
+			ds.lock.Lock()
+			defer ds.lock.Unlock()
+			ds.count--
+			ds.cond.Broadcast()
+		}
+	}
+}
+
+// Available returns the number of permits currently available in the semaphore.
+func (ds *DynamicSemaphore) Available() int {
+	ds.lock.Lock()
+	defer ds.lock.Unlock()
+	return ds.limit - ds.count
 }
 
 func (ds *DynamicSemaphore) SetLimit(limit int) {

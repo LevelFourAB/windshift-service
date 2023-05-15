@@ -1,7 +1,6 @@
 package flowcontrol_test
 
 import (
-	"time"
 	"windshift/service/internal/events/flowcontrol"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -10,13 +9,13 @@ import (
 
 var _ = Describe("FlowControl", func() {
 	It("returns minimum batch size to start with", func() {
-		fc := flowcontrol.NewFlowControl(1*time.Second, 10, 100)
+		fc := flowcontrol.NewFlowControl(10, 100)
 
-		Expect(fc.GetBatchSize()).To(BeNumerically(">=", 10))
+		Expect(fc.GetBatchSize()).To(BeNumerically("==", 10))
 	})
 
-	It("calling GetBatchSize before interval is over increases batch size", func() {
-		fc := flowcontrol.NewFlowControl(1*time.Second, 10, 100)
+	It("calling GetBatchSize after processing all events increases batch size", func() {
+		fc := flowcontrol.NewFlowControl(10, 100)
 
 		v1 := fc.GetBatchSize()
 		for i := 0; i < v1; i++ {
@@ -27,8 +26,8 @@ var _ = Describe("FlowControl", func() {
 		Expect(v2).To(BeNumerically(">", v1))
 	})
 
-	It("calling GetBatchSize after interval is over decreases batch size", func() {
-		fc := flowcontrol.NewFlowControl(100*time.Millisecond, 10, 100)
+	It("calling GetBatchSize after not processing less than 90% of events decreases batch size", func() {
+		fc := flowcontrol.NewFlowControl(10, 100)
 
 		// Request a batch size to increase from minimum
 		v1 := fc.GetBatchSize()
@@ -39,11 +38,10 @@ var _ = Describe("FlowControl", func() {
 		// Request another batch to increase further or we will return the
 		// same minimum batch size.
 		v2 := fc.GetBatchSize()
-		for i := 0; i < v2; i++ {
+		cutoff := int(float32(v2)*0.9) - 1
+		for i := 0; i < cutoff; i++ {
 			fc.AcquireSendLock()()
 		}
-
-		time.Sleep(100 * time.Millisecond)
 
 		v3 := fc.GetBatchSize()
 		Expect(v3).To(BeNumerically("<", v2))

@@ -81,7 +81,7 @@ func (m *Manager) Subscribe(ctx context.Context, config *QueueConfig) (*Queue, e
 // pump is a helper function that will pump messages from the NATS subscription
 // into the channel.
 func (q *Queue) pump(ctx context.Context) {
-	fc := flowcontrol.NewFlowControl(1*time.Second, 1, 50)
+	fc := flowcontrol.NewFlowControl(1, 50)
 	timeout := q.Timeout
 
 	for {
@@ -118,7 +118,6 @@ func (q *Queue) pump(ctx context.Context) {
 
 		for msg := range batch.Messages() {
 			now := time.Now()
-			release := fc.AcquireSendLock()
 
 			if time.Since(now) > timeout {
 				// Timeout, reject the event
@@ -126,16 +125,6 @@ func (q *Queue) pump(ctx context.Context) {
 				continue
 			}
 
-			event, err2 := q.createEvent(ctx, msg, release)
-			if err2 != nil {
-				continue
-			}
-
-			q.logger.Debug(
-				"Received event",
-				zap.Uint64("streamSeq", event.StreamSeq),
-				zap.String("type", event.Data.TypeUrl),
-			)
 			select {
 			case <-ctx.Done():
 				// Shutting down, reject the event
@@ -145,8 +134,18 @@ func (q *Queue) pump(ctx context.Context) {
 					q.logger.Warn("failed to reject message", zap.Error(err2))
 				}
 				continue
-			case q.channel <- event:
-				// The event was delivered to the consumer
+			case release := <-fc.SendLock():
+				event, err2 := q.createEvent(ctx, msg, release)
+				if err2 != nil {
+					continue
+				}
+
+				q.logger.Debug(
+					"Received event",
+					zap.Uint64("streamSeq", event.StreamSeq),
+					zap.String("type", event.Data.TypeUrl),
+				)
+				q.channel <- event
 			}
 		}
 

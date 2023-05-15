@@ -20,20 +20,10 @@ import (
 // consumer buffers events. So we use the rate of processing events to
 // determine if we need to increase or decrease the batch size.
 //
-// We use an AIMD style algorithm to control the batch size. The idea is that
+// We use a MIMD style algorithm to control the batch size. The idea is that
 // we want to increase the batch size if the consumer is processing events
 // quickly, and decrease the batch size if the consumer is slow.
-//
-// In this implementation we set a target fetch interval, with the goal of
-// fetching a batch of events at this interval. When a batch size is requested
-// we increase the size if the time since the last request is shorter than the
-// target interval, and decrease the size if the time since the last request
-// is longer than the target interval.
 type FlowControl struct {
-	// TargetFetchInterval is the target time between fetches from NATS. This
-	// is used to calculate the batch size.
-	TargetFetchInterval time.Duration
-
 	// MinBatchSize is the minimum batch size. We will never go below this value.
 	MinBatchSize int
 
@@ -50,19 +40,21 @@ type FlowControl struct {
 	// the last batch size request.
 	eventsProcessedInLastInterval int
 
+	// eventsBlockedInLastInterval is the number of events blocked since the
+	// last batch size request.
+	eventsBlockedInLastInterval int
+
 	semaphore *DynamicSemaphore
 }
 
 // NewFlowControl creates a new flow control.
 func NewFlowControl(
-	targetFetchInterval time.Duration,
 	minBatchSize int,
 	maxBatchSize int,
 ) *FlowControl {
 	return &FlowControl{
-		TargetFetchInterval: targetFetchInterval,
-		MinBatchSize:        minBatchSize,
-		MaxBatchSize:        maxBatchSize,
+		MinBatchSize: minBatchSize,
+		MaxBatchSize: maxBatchSize,
 
 		currentBatchSize:     minBatchSize,
 		lastBatchSizeRequest: time.Now(),
@@ -81,10 +73,9 @@ func (fc *FlowControl) GetBatchSize() int {
 		return fc.currentBatchSize
 	}
 
-	// If the time since the last batch size request is shorter than the fetch
-	// target interval, we need to increase the batch size.
-	timeSinceLastRequest := time.Since(fc.lastBatchSizeRequest)
-	if timeSinceLastRequest < fc.TargetFetchInterval {
+	// If we had no blocking events and we processed at least 90% of the events
+	// in the last interval, we increase the batch size.
+	if fc.eventsBlockedInLastInterval == 0 && fc.eventsProcessedInLastInterval >= int(float64(fc.currentBatchSize)*0.9) {
 		amountToIncrease := int(math.Max(float64(fc.currentBatchSize)*0.1, 1))
 		fc.currentBatchSize += amountToIncrease
 
@@ -104,6 +95,7 @@ func (fc *FlowControl) GetBatchSize() int {
 
 	fc.lastBatchSizeRequest = time.Now()
 	fc.eventsProcessedInLastInterval = 0
+	fc.eventsBlockedInLastInterval = 0
 	fc.adjustSemaphoreLimit()
 	return fc.currentBatchSize
 }
@@ -121,13 +113,29 @@ func (fc *FlowControl) adjustSemaphoreLimit() {
 
 // SentEvent is called when the consumer has sent an event to the consumer.
 func (fc *FlowControl) AcquireSendLock() func() {
-	fc.semaphore.Acquire()
+	release := fc.semaphore.TryAcquire()
+	if release == nil {
+		// Couldn't acquire a permit, record this and then block until we can
+		// acquire a permit.
+		release = fc.semaphore.Acquire()
+	}
 
 	released := uint64(0)
 	return func() {
 		if atomic.CompareAndSwapUint64(&released, 0, 1) {
 			fc.eventsProcessedInLastInterval++
-			fc.semaphore.Release()
+			release()
 		}
 	}
+}
+
+// SendLock returns a channel that will return a function that will release the
+// send lock.
+func (fc *FlowControl) SendLock() <-chan func() {
+	ch := make(chan func(), 1)
+	go func() {
+		release := fc.AcquireSendLock()
+		ch <- release
+	}()
+	return ch
 }
