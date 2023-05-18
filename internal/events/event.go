@@ -9,7 +9,6 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -62,13 +61,6 @@ func newEvent(
 	md *nats.MsgMetadata,
 	onProcess func(),
 ) (*Event, error) {
-	// Unmarshal protobuf message from msg.Data
-	data := &anypb.Any{}
-	err := proto.Unmarshal(msg.Data, data)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not unmarshal message")
-	}
-
 	headers := &Headers{
 		PublishedAt: md.Timestamp,
 	}
@@ -100,6 +92,12 @@ func newEvent(
 	traceStateHeader := msg.Header.Get("WS-Trace-State")
 	if traceStateHeader != "" {
 		headers.TraceState = &traceStateHeader
+	}
+
+	logger.Debug("Data type and length", zap.String("type", msg.Header.Get("WS-Data-Type")), zap.Int("length", len(msg.Data)))
+	data := &anypb.Any{
+		TypeUrl: "type.googleapis.com/" + msg.Header.Get("WS-Data-Type"),
+		Value:   msg.Data,
 	}
 
 	// Clear the data of the message

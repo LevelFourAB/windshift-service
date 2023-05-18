@@ -5,12 +5,14 @@ import (
 	"time"
 
 	"windshift/service/internal/events"
+	testv1 "windshift/service/internal/proto/windshift/test/v1"
 
 	"github.com/nats-io/nats.go"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -41,7 +43,9 @@ var _ = Describe("Publish", func() {
 	It("can publish to a stream", func(ctx context.Context) {
 		e, err := manager.Publish(ctx, &events.PublishConfig{
 			Subject: "events.test",
-			Data:    Data(&emptypb.Empty{}),
+			Data: Data(&testv1.StringValue{
+				Value: "abc",
+			}),
 		})
 		Expect(err).ToNot(HaveOccurred())
 
@@ -54,9 +58,22 @@ var _ = Describe("Publish", func() {
 		msg, err := js.GetMsg("events", e.ID)
 		Expect(err).ToNot(HaveOccurred())
 
+		// Check that there is a published time header
 		h := msg.Header.Get("WS-Published-Time")
 		_, err = time.Parse(time.RFC3339Nano, h)
 		Expect(err).ToNot(HaveOccurred())
+
+		// Check that the data type is present
+		h = msg.Header.Get("WS-Data-Type")
+		Expect(h).To(Equal("windshift.test.v1.StringValue"))
+
+		// Check that the data is present
+		Expect(msg.Data).ToNot(BeNil())
+		testDataBytes, err := proto.Marshal(&testv1.StringValue{
+			Value: "abc",
+		})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(msg.Data).To(Equal(testDataBytes))
 	})
 
 	It("can publish multiple events to a stream", func(ctx context.Context) {

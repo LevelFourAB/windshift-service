@@ -11,7 +11,6 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.18.0"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -51,13 +50,6 @@ func (m *Manager) Publish(ctx context.Context, config *PublishConfig) (*Publishe
 		Header:  nats.Header{},
 	}
 
-	// Set the message data
-	bytes, err := proto.Marshal(config.Data)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal message")
-	}
-	msg.Data = bytes
-
 	publishOpts := []nats.PubOpt{
 		nats.Context(ctx),
 	}
@@ -83,6 +75,10 @@ func (m *Manager) Publish(ctx context.Context, config *PublishConfig) (*Publishe
 	m.w3cPropagator.Inject(ctx, eventTracingHeaders{
 		headers: &msg.Header,
 	})
+
+	// Copy data as is
+	msg.Header.Set("WS-Data-Type", string(config.Data.MessageName()))
+	msg.Data = config.Data.Value
 
 	m.logger.Debug(
 		"Publishing event",
