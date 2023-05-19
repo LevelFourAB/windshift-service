@@ -7,11 +7,11 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"time"
 	eventsv1alpha1 "windshift/service/internal/proto/windshift/events/v1alpha1"
 	testv1 "windshift/service/internal/proto/windshift/test/v1"
 
-	"go.uber.org/atomic"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -122,9 +122,9 @@ func main() {
 		go func() {
 			for {
 				event := <-workQueue
-				pending.Dec()
+				pending.Add(-1)
 
-				processing.Inc()
+				processing.Add(1)
 				data, err := event.Data.UnmarshalNew()
 				if err != nil {
 					log.Println("Could not unmarshal event data:", err)
@@ -156,8 +156,8 @@ func main() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				processed.Inc()
-				processing.Dec()
+				processed.Add(1)
+				processing.Add(-1)
 			}
 		}()
 	}
@@ -169,7 +169,7 @@ func main() {
 		case resp := <-incoming:
 			if resp.GetEvent() != nil {
 				// Acquire a semaphore slot
-				pending.Inc()
+				pending.Add(1)
 				workQueue <- resp.GetEvent()
 			}
 		}
