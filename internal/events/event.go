@@ -3,6 +3,7 @@ package events
 import (
 	"context"
 	"time"
+	"windshift/service/internal/events/flowcontrol"
 
 	"github.com/cockroachdb/errors"
 	"github.com/nats-io/nats.go"
@@ -28,7 +29,7 @@ type Event struct {
 	span      trace.Span
 	logger    *zap.Logger
 	msg       *nats.Msg
-	onProcess func()
+	onProcess func(flowcontrol.ProcessType)
 
 	// Context is the context of this event. It will be valid until the event
 	// expires, is acknowledged or rejected.
@@ -37,8 +38,8 @@ type Event struct {
 	// Subject is the subject the event was published to.
 	Subject string
 
-	// SubscriptionSeq is the sequence number of the event in the queue.
-	SubscriptionSeq uint64
+	// ConsumerSeq is the sequence number of the event in the queue.
+	ConsumerSeq uint64
 
 	// StreamSeq is the sequence number of the event in the event stream. Can
 	// be used for resuming from a certain point in time. For example with an
@@ -59,7 +60,7 @@ func newEvent(
 	logger *zap.Logger,
 	msg nats.Msg,
 	md *nats.MsgMetadata,
-	onProcess func(),
+	onProcess func(flowcontrol.ProcessType),
 ) (*Event, error) {
 	headers := &Headers{
 		PublishedAt: md.Timestamp,
@@ -94,7 +95,6 @@ func newEvent(
 		headers.TraceState = &traceStateHeader
 	}
 
-	logger.Debug("Data type and length", zap.String("type", msg.Header.Get("WS-Data-Type")), zap.Int("length", len(msg.Data)))
 	data := &anypb.Any{
 		TypeUrl: "type.googleapis.com/" + msg.Header.Get("WS-Data-Type"),
 		Value:   msg.Data,
@@ -104,16 +104,16 @@ func newEvent(
 	msg.Data = nil
 
 	return &Event{
-		span:            span,
-		logger:          logger,
-		msg:             &msg,
-		onProcess:       onProcess,
-		Context:         ctx,
-		Subject:         msg.Subject,
-		SubscriptionSeq: md.Sequence.Stream,
-		StreamSeq:       md.Sequence.Consumer,
-		Headers:         headers,
-		Data:            data,
+		span:        span,
+		logger:      logger,
+		msg:         &msg,
+		onProcess:   onProcess,
+		Context:     ctx,
+		Subject:     msg.Subject,
+		ConsumerSeq: md.Sequence.Stream,
+		StreamSeq:   md.Sequence.Consumer,
+		Headers:     headers,
+		Data:        data,
 	}, nil
 }
 
@@ -134,7 +134,7 @@ func (e *Event) Ping() error {
 		return errors.Wrap(err, "could not ping message")
 	}
 	e.span.AddEvent("pinged")
-
+	e.onProcess(flowcontrol.ProcessTypePing)
 	return nil
 }
 
@@ -150,7 +150,7 @@ func (e *Event) Ack() error {
 	}
 
 	e.span.SetStatus(codes.Ok, "")
-	e.onProcess()
+	e.onProcess(flowcontrol.ProcessTypeAck)
 	return nil
 }
 
@@ -167,7 +167,7 @@ func (e *Event) Reject() error {
 	}
 
 	e.span.SetStatus(codes.Error, "event rejected")
-	e.onProcess()
+	e.onProcess(flowcontrol.ProcessTypeReject)
 	return nil
 }
 
@@ -185,7 +185,7 @@ func (e *Event) RejectWithDelay(delay time.Duration) error {
 	}
 
 	e.span.SetStatus(codes.Error, "event rejected")
-	e.onProcess()
+	e.onProcess(flowcontrol.ProcessTypeReject)
 	return nil
 }
 
@@ -203,6 +203,6 @@ func (e *Event) RejectPermanently() error {
 	}
 
 	e.span.SetStatus(codes.Error, "event permanently rejected")
-	e.onProcess()
+	e.onProcess(flowcontrol.ProcessTypePermanentReject)
 	return nil
 }

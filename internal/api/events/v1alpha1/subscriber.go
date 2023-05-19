@@ -287,8 +287,14 @@ func (e *EventsServiceServer) handlePing(
 }
 
 func (*EventsServiceServer) createQueueConfig(sub *eventsv1alpha1.ConsumeRequest_Subscribe) *events.QueueConfig {
+	maxPendingEvents := uint(0)
+	if sub.MaxProcessingEvents != nil {
+		maxPendingEvents = uint(*sub.MaxProcessingEvents)
+	}
+
 	return &events.QueueConfig{
-		Stream: sub.Stream,
-		Name:   sub.Consumer,
+		Stream:           sub.Stream,
+		Name:             sub.Consumer,
+		MaxPendingEvents: maxPendingEvents,
 	}
 }

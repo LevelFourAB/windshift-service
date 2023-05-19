@@ -210,6 +210,14 @@ message ConsumeRequest {
 		// The id of the consumer, should be an id previously created using
 		// EnsureConsumer.
 		string consumer = 2;
+		// The maximum number of events to process at once. If not provided
+		// a limit of 50 will be used.
+		//
+		// In most cases this should be set to approximately the number of
+		// events that can be processed in parallel plus a small buffer. The
+		// server will ramp up events to this limit, and will only send more
+		// events once the client has acknowledged or rejected events.
+		optional uint64 max_processing_events = 4;
 	}
 
 	// Ack indicates that some events have been successfully processed.

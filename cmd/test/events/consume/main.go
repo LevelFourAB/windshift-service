@@ -14,6 +14,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 func main() {
@@ -23,6 +24,7 @@ func main() {
 	workLoadRandomness := flag.Int("work-load-randomness", 0, "Randomness to add to the work load time in milliseconds")
 	parallelism := flag.Int("parallelism", 1, "Number of parallel consumers")
 	durable := flag.String("durable", "", "Durable consumer name")
+	processingTimeout := flag.Int("processing-timeout", 30000, "Processing timeout in milliseconds")
 	flag.Parse()
 
 	conn, err := grpc.Dial("localhost:8080", grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -61,6 +63,7 @@ func main() {
 				Start: true,
 			},
 		},
+		ProcessingTimeout: durationpb.New(time.Duration(*processingTimeout) * time.Millisecond),
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -72,11 +75,13 @@ func main() {
 	}
 
 	// Send the initial subscription request
+	maxProcessingEvents := uint64(*parallelism)
 	err = stream.Send(&eventsv1alpha1.ConsumeRequest{
 		Request: &eventsv1alpha1.ConsumeRequest_Subscribe_{
 			Subscribe: &eventsv1alpha1.ConsumeRequest_Subscribe{
-				Stream:   "test",
-				Consumer: c.Id,
+				Stream:              "test",
+				Consumer:            c.Id,
+				MaxProcessingEvents: &maxProcessingEvents,
 			},
 		},
 	})

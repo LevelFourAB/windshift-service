@@ -3,6 +3,7 @@ package events
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 	"windshift/service/internal/events/flowcontrol"
 
@@ -15,8 +16,9 @@ import (
 )
 
 type QueueConfig struct {
-	Stream string
-	Name   string
+	Stream           string
+	Name             string
+	MaxPendingEvents uint
 }
 
 type Queue struct {
@@ -26,6 +28,7 @@ type Queue struct {
 	ctx            context.Context
 	ctxCancel      context.CancelFunc
 	shutdownSignal chan struct{}
+	closed         int64
 
 	subscription *nats.Subscription
 	channel      chan *Event
@@ -43,6 +46,10 @@ func (m *Manager) Subscribe(ctx context.Context, config *QueueConfig) (*Queue, e
 
 	if config.Name == "" {
 		return nil, errors.New("name of subscription must be specified")
+	}
+
+	if config.MaxPendingEvents == 0 {
+		config.MaxPendingEvents = 50
 	}
 
 	ci, err := m.jetStream.ConsumerInfo(config.Stream, config.Name, nats.Context(ctx))
@@ -74,14 +81,14 @@ func (m *Manager) Subscribe(ctx context.Context, config *QueueConfig) (*Queue, e
 		Timeout: ci.Config.AckWait,
 	}
 
-	go q.pump(ctx)
+	go q.pump(ctx, config.MaxPendingEvents)
 	return q, nil
 }
 
 // pump is a helper function that will pump messages from the NATS subscription
 // into the channel.
-func (q *Queue) pump(ctx context.Context) {
-	fc := flowcontrol.NewFlowControl(1, 50)
+func (q *Queue) pump(ctx context.Context, maxPendingEvents uint) {
+	fc := flowcontrol.NewFlowControl(ctx, q.logger, q.Timeout, int(maxPendingEvents))
 	timeout := q.Timeout
 
 	for {
@@ -92,6 +99,7 @@ func (q *Queue) pump(ctx context.Context) {
 				q.logger.Warn("failed to unsubscribe", zap.Error(err))
 			}
 
+			atomic.StoreInt64(&q.closed, 1)
 			close(q.channel)
 			q.shutdownSignal <- struct{}{}
 			return
@@ -125,27 +133,24 @@ func (q *Queue) pump(ctx context.Context) {
 				continue
 			}
 
-			select {
-			case <-ctx.Done():
-				// Shutting down, reject the event
-				q.logger.Debug("Context done, rejecting event")
-				err2 := msg.Nak()
-				if err2 != nil {
-					q.logger.Warn("failed to reject message", zap.Error(err2))
-				}
+			event, err2 := q.createEvent(ctx, fc, msg)
+			if err2 != nil {
 				continue
-			case release := <-fc.SendLock():
-				event, err2 := q.createEvent(ctx, msg, release)
-				if err2 != nil {
-					continue
-				}
+			}
 
-				q.logger.Debug(
-					"Received event",
-					zap.Uint64("streamSeq", event.StreamSeq),
-					zap.String("type", event.Data.TypeUrl),
-				)
-				q.channel <- event
+			q.logger.Debug(
+				"Received event",
+				zap.Uint64("streamSeq", event.StreamSeq),
+				zap.Uint64("consumerSeq", event.ConsumerSeq),
+				zap.String("type", string(event.Data.MessageName())),
+			)
+
+			select {
+			case q.channel <- event:
+				// Event sent to channel
+			case <-ctx.Done():
+				// Context is done, stop trying to fetch messages
+				break
 			}
 		}
 
@@ -168,7 +173,7 @@ func (q *Queue) pump(ctx context.Context) {
 
 // createEvent takes a NATS message, extracts the tracing information and
 // creates an Event that can be passed on to the subscriber.
-func (q *Queue) createEvent(ctx context.Context, msg *nats.Msg, onProcess func()) (*Event, error) {
+func (q *Queue) createEvent(ctx context.Context, fc *flowcontrol.FlowControl, msg *nats.Msg) (*Event, error) {
 	// We may have tracing information stored in the event headers, so we
 	// extract them and create our own span indicating that we received the
 	// message.
@@ -202,6 +207,7 @@ func (q *Queue) createEvent(ctx context.Context, msg *nats.Msg, onProcess func()
 	// Set the message ID as an attribute
 	span.SetAttributes(semconv.MessagingMessageID(fmt.Sprintf("%d", md.Sequence.Stream)))
 
+	onProcess := fc.Received(md.Sequence.Consumer)
 	event, err := newEvent(msgCtx, span, q.logger, *msg, md, onProcess)
 	if err != nil {
 		q.logger.Error("failed to create event", zap.Error(err))
@@ -226,7 +232,7 @@ func (q *Queue) createEvent(ctx context.Context, msg *nats.Msg, onProcess func()
 }
 
 func (q *Queue) Close() error {
-	if q.ctx.Err() != nil {
+	if atomic.LoadInt64(&q.closed) == 1 {
 		return nil
 	}
 

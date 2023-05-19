@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"windshift/service/internal/events"
+	testv1 "windshift/service/internal/proto/windshift/test/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -77,17 +78,28 @@ var _ = Describe("Queue", func() {
 			Expect(err).ToNot(HaveOccurred())
 			defer queue.Close()
 
-			msg, err := anypb.New(&emptypb.Empty{})
+			msg := &testv1.StringValue{
+				Value: "test",
+			}
 			Expect(err).ToNot(HaveOccurred())
 			_, err = manager.Publish(ctx, &events.PublishConfig{
 				Subject: "events.test",
-				Data:    msg,
+				Data:    Data(msg),
 			})
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
 			case event := <-queue.Events():
 				Expect(event).ToNot(BeNil())
+				Expect(event.Subject).To(Equal("events.test"))
+				Expect(event.Data).ToNot(BeNil())
+				data, err := event.Data.UnmarshalNew()
+				Expect(err).ToNot(HaveOccurred())
+				if msg2, ok := data.(*testv1.StringValue); ok {
+					Expect(msg2.Value).To(BeEquivalentTo(msg.Value))
+				} else {
+					Fail("wrong type")
+				}
 			case <-time.After(200 * time.Millisecond):
 				Fail("no event received")
 			}
@@ -714,8 +726,8 @@ var _ = Describe("Queue", func() {
 				empty := &emptypb.Empty{}
 				err = event.Data.UnmarshalTo(empty)
 				Expect(err).ToNot(HaveOccurred())
-			case <-time.After(200 * time.Millisecond):
-				Fail("no event received")
+			case <-time.After(1000 * time.Millisecond):
+				Fail("redelivered event not received")
 			}
 		})
 
