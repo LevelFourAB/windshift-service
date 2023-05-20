@@ -8,6 +8,7 @@ import (
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func newServer(
@@ -16,6 +17,9 @@ func newServer(
 	config *Config,
 ) (*grpc.Server, error) {
 	server := grpc.NewServer()
+
+	// Make reflection available for gRPC tooling
+	reflection.Register(server)
 
 	lifecycle.Append(fx.Hook{
 		OnStart: func(context.Context) error {
