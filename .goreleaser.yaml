@@ -1,0 +1,80 @@
+project_name: windshift
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+builds:
+  - main: ./cmd/server
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    goarm:
+      - "7"
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '`build:'
+      - '^chore:'
+      - '^docs:'
+      - '^refactor:'
+      - '^revert:'
+      - '^style:'
+      - '^test:'
+
+dockers:
+  - image_templates:
+    - "ghcr.io/levelfourab/windshift-service:{{ .Tag }}-amd64"
+    use: buildx
+    build_flag_templates:
+    - "--pull"
+    - "--label=org.opencontainers.image.description=gRPC service for event management and consumption using NATS "
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.name={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.source={{.GitURL}}"
+    - "--platform=linux/amd64"
+  - image_templates:
+    - "ghcr.io/levelfourab/windshift-service:{{ .Tag }}-arm64"
+    use: buildx
+    build_flag_templates:
+    - "--pull"
+    - "--label=org.opencontainers.image.description=gRPC service for event management and consumption using NATS "
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.name={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.source={{.GitURL}}"
+    - "--platform=linux/arm64"
+    goarch: arm64
+
+docker_manifests:
+- name_template: 'ghcr.io/levelfourab/windshift-service:{{ .Tag }}'
+  image_templates:
+  - 'ghcr.io/levelfourab/windshift-service:{{ .Tag }}-amd64'
+  - 'ghcr.io/levelfourab/windshift-service:{{ .Tag }}-arm64'
+- name_template: 'ghcr.io/levelfourab/windshift-service:latest'
+  image_templates:
+  - 'ghcr.io/levelfourab/windshift-service:{{ .Tag }}-amd64'
+  - 'ghcr.io/levelfourab/windshift-service:{{ .Tag }}-arm64'
+
+# The lines beneath this are called `modelines`. See `:help modeline`
+# Feel free to remove those if you don't want/use them.
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
