@@ -5,15 +5,15 @@ repos:
   - id: commitlint
     stages: [commit-msg]
 - repo: https://github.com/golangci/golangci-lint
-  rev: v1.51.2
+  rev: v1.52.2
   hooks:
   - id: golangci-lint
 - repo: https://github.com/dnephin/pre-commit-golang
-  rev: v0.4.0
+  rev: v0.5.1
   hooks:
   - id: go-mod-tidy
 - repo: https://github.com/bufbuild/buf
-  rev: v1.17.0
+  rev: v1.19.0
   hooks:
   - id: buf-lint
 - repo: https://github.com/pre-commit/mirrors-clang-format
@@ -22,7 +22,7 @@ repos:
   - id: clang-format
     types_or: [proto]
 - repo: https://github.com/adamchainz/pre-commit-dprint
-  rev: v0.36.0
+  rev: v0.36.1
   hooks:
   - id: dprint
     types_or:
