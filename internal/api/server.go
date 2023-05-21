@@ -5,6 +5,7 @@ import (
 	"net"
 	"strconv"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -16,7 +17,14 @@ func newServer(
 	logger *zap.Logger,
 	config *Config,
 ) (*grpc.Server, error) {
-	server := grpc.NewServer()
+	server := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			otelgrpc.UnaryServerInterceptor(),
+		),
+		grpc.ChainStreamInterceptor(
+			otelgrpc.StreamServerInterceptor(),
+		),
+	)
 
 	// Make reflection available for gRPC tooling
 	reflection.Register(server)
