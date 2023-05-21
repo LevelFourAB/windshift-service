@@ -6,7 +6,7 @@ require (
 	github.com/cockroachdb/errors v1.9.1
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.0.0-rc.5
-	github.com/levelfourab/sprout-go v0.8.0
+	github.com/levelfourab/sprout-go v0.9.0
 	github.com/nats-io/nats-server/v2 v2.9.17
 	github.com/nats-io/nats.go v1.25.0
 	github.com/onsi/ginkgo/v2 v2.9.5
@@ -58,6 +58,7 @@ require (
 	github.com/rogpeppe/go-internal v1.8.1 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/thessem/zap-prettyconsole v0.3.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/runtime v0.41.1 // indirect
 	go.opentelemetry.io/contrib/propagators/autoprop v0.41.1 // indirect
 	go.opentelemetry.io/contrib/propagators/aws v1.16.1 // indirect
 	go.opentelemetry.io/contrib/propagators/b3 v1.16.1 // indirect
