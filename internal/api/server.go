@@ -5,10 +5,12 @@ import (
 	"net"
 	"strconv"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -17,12 +19,18 @@ func newServer(
 	logger *zap.Logger,
 	config *Config,
 ) (*grpc.Server, error) {
+	gRPCLogger := createLogger(logger)
+	loggingOptions := []logging.Option{
+		logging.WithLevels(loggingCodeToLevel),
+	}
 	server := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			otelgrpc.UnaryServerInterceptor(),
+			logging.UnaryServerInterceptor(gRPCLogger, loggingOptions...),
 		),
 		grpc.ChainStreamInterceptor(
 			otelgrpc.StreamServerInterceptor(),
+			logging.StreamServerInterceptor(gRPCLogger, loggingOptions...),
 		),
 	)
 
@@ -51,4 +59,65 @@ func newServer(
 		},
 	})
 	return server, nil
+}
+
+// createLogger creates a logger that can be used with the gRPC logging
+// middleware.
+func createLogger(logger *zap.Logger) logging.Logger {
+	logger = logger.WithOptions(zap.AddCallerSkip(1))
+	return logging.LoggerFunc(func(ctx context.Context, level logging.Level, msg string, fields ...any) {
+		zapLevel := zap.DebugLevel
+		switch level {
+		case logging.LevelDebug:
+			zapLevel = zap.DebugLevel
+		case logging.LevelInfo:
+			zapLevel = zap.InfoLevel
+		case logging.LevelWarn:
+			zapLevel = zap.WarnLevel
+		case logging.LevelError:
+			zapLevel = zap.ErrorLevel
+		}
+
+		entry := logger.Check(zapLevel, msg)
+		if entry == nil {
+			return
+		}
+
+		// If we are logging a message create the fields we want to write
+		zapFields := make([]zap.Field, 0, len(fields)/2)
+		for i := 0; i < len(fields); i += 2 {
+			key := fields[i].(string)
+			switch v := fields[i+1].(type) {
+			case string:
+				zapFields = append(zapFields, zap.String(key, v))
+			case int:
+				zapFields = append(zapFields, zap.Int(key, v))
+			case bool:
+				zapFields = append(zapFields, zap.Bool(key, v))
+			default:
+				zapFields = append(zapFields, zap.Any(key, v))
+			}
+		}
+
+		entry.Write(zapFields...)
+	})
+}
+
+// loggingCodeToLevel converts a gRPC error code to a logging level. To avoid
+// logging too much in production we map non-error codes to the debug level.
+func loggingCodeToLevel(code codes.Code) logging.Level {
+	switch code {
+	case codes.OK, codes.NotFound, codes.Canceled, codes.AlreadyExists,
+		codes.InvalidArgument, codes.Unauthenticated:
+		return logging.LevelDebug
+	case codes.DeadlineExceeded, codes.PermissionDenied,
+		codes.ResourceExhausted, codes.FailedPrecondition, codes.Aborted,
+		codes.OutOfRange, codes.Unavailable:
+		return logging.LevelWarn
+	case codes.Unknown, codes.Unimplemented, codes.Internal, codes.DataLoss:
+		return logging.LevelError
+	}
+
+	// For unknown codes output things at an info level.
+	return logging.LevelInfo
 }
