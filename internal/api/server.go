@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -27,10 +28,12 @@ func newServer(
 		grpc.ChainUnaryInterceptor(
 			otelgrpc.UnaryServerInterceptor(),
 			logging.UnaryServerInterceptor(gRPCLogger, loggingOptions...),
+			recovery.UnaryServerInterceptor(),
 		),
 		grpc.ChainStreamInterceptor(
 			otelgrpc.StreamServerInterceptor(),
 			logging.StreamServerInterceptor(gRPCLogger, loggingOptions...),
+			recovery.StreamServerInterceptor(),
 		),
 	)
 
