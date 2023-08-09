@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
 	"os"
 	"os/signal"
 	"strconv"
+	"sync/atomic"
 	"time"
 	eventsv1alpha1 "windshift/service/internal/proto/windshift/events/v1alpha1"
 	testv1 "windshift/service/internal/proto/windshift/test/v1"
@@ -16,6 +18,9 @@ import (
 )
 
 func main() {
+	parallelism := flag.Int("parallelism", 1, "Number of parallel publishers")
+	flag.Parse()
+
 	conn, err := grpc.Dial("localhost:8080", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatal(err)
@@ -39,33 +44,55 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Kill, os.Interrupt)
 	defer cancel()
 
-	i := 0
-	for {
-		if ctx.Err() != nil {
-			return
+	total := atomic.Int32{}
+	processed := atomic.Int32{}
+	go func() {
+		// Print the counter every second
+		timer := time.NewTicker(time.Second)
+		for {
+			<-timer.C
+			current := processed.Swap(0)
+			t := total.Add(current)
+			log.Println("Generated", current, "events, total=", t)
 		}
+	}()
 
-		value := strconv.Itoa(i)
+	current := atomic.Int32{}
 
-		data, err := anypb.New(&testv1.StringValue{
-			Value: value,
-		})
-		if err != nil {
-			log.Println(err)
-			return
-		}
+	// Start a goroutine for each parallel publisher
+	for j := 0; j < *parallelism; j++ {
+		go func() {
+			for {
+				if ctx.Err() != nil {
+					return
+				}
 
-		_, err = client.PublishEvent(ctx, &eventsv1alpha1.PublishEventRequest{
-			Subject: "test",
-			Data:    data,
-		})
-		if err != nil {
-			log.Println("Could not send event", err)
-			time.Sleep(100 * time.Millisecond)
-			continue
-		}
+				v := current.Add(1)
+				value := strconv.Itoa(int(v))
 
-		i++
-		log.Println("Sent event: ", i)
+				data, err := anypb.New(&testv1.StringValue{
+					Value: value,
+				})
+				if err != nil {
+					log.Println(err)
+					return
+				}
+
+				_, err = client.PublishEvent(ctx, &eventsv1alpha1.PublishEventRequest{
+					Subject: "test",
+					Data:    data,
+				})
+				if err != nil {
+					log.Println("Could not send event", err)
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
+
+				//log.Println("Sent event: ", v)
+				processed.Add(1)
+			}
+		}()
 	}
+
+	<-ctx.Done()
 }
