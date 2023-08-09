@@ -87,18 +87,27 @@ func (m *Manager) Publish(ctx context.Context, config *PublishConfig) (*Publishe
 	)
 
 	// Publish the message.
-	ack, err := m.js.PublishMsg(ctx, msg, publishOpts...)
+	f, err := m.js.PublishMsgAsync(msg, publishOpts...)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to publish message")
 		return nil, errors.Wrap(err, "failed to publish message")
 	}
 
-	span.SetAttributes(
-		semconv.MessagingMessageID(fmt.Sprintf("%d", ack.Sequence)),
-	)
-	span.SetStatus(codes.Ok, "")
-	return &PublishedEvent{
-		ID: ack.Sequence,
-	}, nil
+	select {
+	case <-ctx.Done():
+		return nil, errors.Errorf("publishing event timed out")
+	case ack := <-f.Ok():
+		span.SetAttributes(
+			semconv.MessagingMessageID(fmt.Sprintf("%d", ack.Sequence)),
+		)
+		span.SetStatus(codes.Ok, "")
+		return &PublishedEvent{
+			ID: ack.Sequence,
+		}, nil
+	case err := <-f.Err():
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to publish message")
+		return nil, errors.Wrap(err, "failed to publish message")
+	}
 }

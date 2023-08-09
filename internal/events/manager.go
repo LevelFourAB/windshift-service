@@ -22,7 +22,7 @@ func NewManager(
 	tracer trace.Tracer,
 	conn *nats.Conn,
 ) (*Manager, error) {
-	js, err := jetstream.New(conn)
+	js, err := jetstream.New(conn, jetstream.WithPublishAsyncMaxPending(256))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create JetStream channel")
 	}
