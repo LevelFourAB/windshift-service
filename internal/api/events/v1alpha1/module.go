@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"context"
 	"windshift/service/internal/events"
 	eventsv1alpha1 "windshift/service/internal/proto/windshift/events/v1alpha1"
 
@@ -13,7 +14,7 @@ import (
 
 var Module = fx.Module(
 	"grpc.v1alpha1",
-	fx.Provide(sprout.Logger("grpc.v1alpha1"), fx.Private),
+	fx.Provide(sprout.Logger("grpc.events.v1alpha1"), fx.Private),
 	fx.Provide(newEventsServiceServer),
 	fx.Invoke(register),
 )
@@ -24,19 +25,30 @@ type EventsServiceServer struct {
 	logger        *zap.Logger
 	w3cPropagator propagation.TextMapPropagator
 
-	events *events.Manager
+	events     *events.Manager
+	globalStop chan struct{}
 }
 
 func newEventsServiceServer(
+	lifecycle fx.Lifecycle,
 	logger *zap.Logger,
 	events *events.Manager,
 ) *EventsServiceServer {
-	return &EventsServiceServer{
+	server := &EventsServiceServer{
 		logger:        logger,
 		w3cPropagator: propagation.TraceContext{},
 
-		events: events,
+		events:     events,
+		globalStop: make(chan struct{}),
 	}
+
+	lifecycle.Append(fx.Hook{
+		OnStop: func(context.Context) error {
+			close(server.globalStop)
+			return nil
+		},
+	})
+	return server
 }
 
 func register(server *grpc.Server, events *EventsServiceServer) {
