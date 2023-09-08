@@ -54,6 +54,11 @@ func (e *EventsServiceServer) EnsureStream(ctx context.Context, req *eventsv1alp
 		config.Subjects = source.Subjects.Subjects
 	case *eventsv1alpha1.EnsureStreamRequest_Mirror:
 		config.Mirror = toStreamSource(source.Mirror)
+	case *eventsv1alpha1.EnsureStreamRequest_Aggregate:
+		config.Sources = make([]*events.StreamSource, len(source.Aggregate.Sources))
+		for i, s := range source.Aggregate.Sources {
+			config.Sources[i] = toStreamSource(s)
+		}
 	}
 
 	if req.Storage != nil {
@@ -106,9 +111,9 @@ func toStreamPointer(p *eventsv1alpha1.StreamPointer) *events.StreamPointer {
 			return &events.StreamPointer{
 				Time: pointer.Time.AsTime(),
 			}
-		case *eventsv1alpha1.StreamPointer_Id:
+		case *eventsv1alpha1.StreamPointer_Offset:
 			return &events.StreamPointer{
-				ID: pointer.Id,
+				ID: pointer.Offset,
 			}
 		case *eventsv1alpha1.StreamPointer_Start:
 			return &events.StreamPointer{
