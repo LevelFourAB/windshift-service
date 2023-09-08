@@ -347,8 +347,9 @@ message Event {
 }
 
 message Headers {
-	// Timestamp of the event, if not set, the server will use the current time.
-	optional google.protobuf.Timestamp timestamp = 1;
+	// Timestamp of the event. This is the time the event occurred, clients
+	// may set this when publishing.
+	google.protobuf.Timestamp timestamp = 1;
 	// Key used to prevent duplicate events from being stored if a retry is
 	// needed. Should be set to a unique value for each publish request of a
 	// specific event.
