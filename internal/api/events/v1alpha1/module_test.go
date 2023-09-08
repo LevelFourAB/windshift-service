@@ -13,6 +13,7 @@ import (
 	"github.com/levelfourab/sprout-go/test"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -59,6 +60,7 @@ var TestModule = fx.Module(
 	fx.Provide(newServer),
 	fx.Provide(newClient),
 	fx.Provide(getNATS),
+	fx.Provide(newJetStream),
 )
 
 func newServer(
@@ -145,6 +147,10 @@ func getNATS() *nats.Conn {
 		natsConn.Close()
 	})
 	return natsConn
+}
+
+func newJetStream(conn *nats.Conn) (jetstream.JetStream, error) {
+	return jetstream.New(conn, jetstream.WithPublishAsyncMaxPending(256))
 }
 
 func Data(msg proto.Message) *anypb.Any {
