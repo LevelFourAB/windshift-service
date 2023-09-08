@@ -20,6 +20,10 @@ var Module = fx.Module(
 type Config struct {
 	// URL is the URL of the NATS server to connect to.
 	URL string `env:"URL,required"`
+
+	// PublishAsyncMaxPending is the maximum number of messages that can be
+	// published asynchronously before blocking new publishes.
+	PublishAsyncMaxPending int `env:"PUBLISH_ASYNC_MAX_PENDING" envDefault:"256"`
 }
 
 func newNats(logger *zap.Logger, config *Config) (*nats.Conn, error) {
@@ -41,6 +45,6 @@ func newNats(logger *zap.Logger, config *Config) (*nats.Conn, error) {
 	)
 }
 
-func newJetStream(conn *nats.Conn) (jetstream.JetStream, error) {
-	return jetstream.New(conn, jetstream.WithPublishAsyncMaxPending(256))
+func newJetStream(conn *nats.Conn, config *Config) (jetstream.JetStream, error) {
+	return jetstream.New(conn, jetstream.WithPublishAsyncMaxPending(config.PublishAsyncMaxPending))
 }
