@@ -96,7 +96,10 @@ func (m *Manager) Publish(ctx context.Context, config *PublishConfig) (*Publishe
 
 	select {
 	case <-ctx.Done():
-		return nil, errors.Errorf("publishing event timed out")
+		// We don't know if the message was published or not, so the trace
+		// will be marked as unset.
+		span.SetStatus(codes.Unset, "context canceled")
+		return nil, errors.Wrapf(ctx.Err(), "failed to publish message")
 	case ack := <-f.Ok():
 		span.SetAttributes(
 			semconv.MessagingMessageID(fmt.Sprintf("%d", ack.Sequence)),
