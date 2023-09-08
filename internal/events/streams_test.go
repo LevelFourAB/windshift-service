@@ -242,7 +242,7 @@ var _ = Describe("Streams", func() {
 				Expect(stream.CachedInfo().Config.Mirror.Name).To(Equal("test"))
 			})
 
-			It("a mirror of a stream does not copy old data", func(ctx context.Context) {
+			It("a mirror of a stream copies old data", func(ctx context.Context) {
 				_, err := js.Stream(ctx, "test")
 				Expect(err).To(MatchError(jetstream.ErrStreamNotFound))
 
@@ -273,7 +273,7 @@ var _ = Describe("Streams", func() {
 				// Verify that the mirror stream has no messages
 				stream, err := js.Stream(ctx, "test-mirror")
 				Expect(err).ToNot(HaveOccurred())
-				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(0)))
+				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
 			})
 
 			It("a mirror of a stream copies new data", func(ctx context.Context) {
@@ -580,6 +580,70 @@ var _ = Describe("Streams", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
 			})
+
+			It("can create a mirror of a stream starting at the last event", func(ctx context.Context) {
+				_, err := js.Stream(ctx, "test")
+				Expect(err).To(MatchError(jetstream.ErrStreamNotFound))
+
+				_, err = manager.EnsureStream(ctx, &events.StreamConfig{
+					Name: "test",
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				_, err = manager.EnsureStream(ctx, &events.StreamConfig{
+					Name: "test-mirror",
+					Mirror: &events.StreamSource{
+						Name: "test",
+						Pointer: &events.StreamPointer{
+							First: false,
+						},
+					},
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				stream, err := js.Stream(ctx, "test-mirror")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(stream.CachedInfo().Config.Mirror).ToNot(BeNil())
+				Expect(stream.CachedInfo().Config.Mirror.Name).To(Equal("test"))
+				Expect(stream.CachedInfo().Config.Mirror.OptStartSeq).To(Equal(uint64(0)))
+			})
+
+			It("can create a mirror of a stream starting at the last event and it will receive old data", func(ctx context.Context) {
+				_, err := js.Stream(ctx, "test")
+				Expect(err).To(MatchError(jetstream.ErrStreamNotFound))
+
+				// Create the source stream
+				_, err = manager.EnsureStream(ctx, &events.StreamConfig{
+					Name: "test",
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				// Publish some messages to the source stream
+				_, err = manager.Publish(ctx, &events.PublishConfig{
+					Subject: "test",
+					Data:    Data(&emptypb.Empty{}),
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				// Create the mirror stream
+				_, err = manager.EnsureStream(ctx, &events.StreamConfig{
+					Name: "test-mirror",
+					Mirror: &events.StreamSource{
+						Name: "test",
+						Pointer: &events.StreamPointer{
+							First: false,
+						},
+					},
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				time.Sleep(100 * time.Millisecond)
+
+				// Verify that the mirror stream does not hav the message
+				stream, err := js.Stream(ctx, "test-mirror")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(0)))
+			})
 		})
 
 		Context("Non-mirrored stream sources", func() {
@@ -642,7 +706,7 @@ var _ = Describe("Streams", func() {
 				Expect(stream.CachedInfo().Config.Sources[1].Name).To(Equal("test2"))
 			})
 
-			It("does not copy old data by default", func(ctx context.Context) {
+			It("copies old data by default", func(ctx context.Context) {
 				_, err := js.Stream(ctx, "test")
 				Expect(err).To(MatchError(jetstream.ErrStreamNotFound))
 
@@ -671,7 +735,43 @@ var _ = Describe("Streams", func() {
 
 				stream, err := js.Stream(ctx, "test2")
 				Expect(err).ToNot(HaveOccurred())
+				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
+			})
+
+			It("copies new data", func(ctx context.Context) {
+				_, err := js.Stream(ctx, "test")
+				Expect(err).To(MatchError(jetstream.ErrStreamNotFound))
+
+				_, err = manager.EnsureStream(ctx, &events.StreamConfig{
+					Name: "test",
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				_, err = manager.EnsureStream(ctx, &events.StreamConfig{
+					Name: "test2",
+					Sources: []*events.StreamSource{
+						{
+							Name: "test",
+						},
+					},
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				stream, err := js.Stream(ctx, "test2")
+				Expect(err).ToNot(HaveOccurred())
 				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(0)))
+
+				_, err = manager.Publish(ctx, &events.PublishConfig{
+					Subject: "test",
+					Data:    Data(&emptypb.Empty{}),
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				time.Sleep(200 * time.Millisecond)
+
+				stream, err = js.Stream(ctx, "test2")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
 			})
 
 			It("can copy from specific id of another stream", func(ctx context.Context) {
@@ -800,6 +900,44 @@ var _ = Describe("Streams", func() {
 				stream, err := js.Stream(ctx, "test2")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
+			})
+
+			It("can start at end of other stream and will not receive old data", func(ctx context.Context) {
+				_, err := js.Stream(ctx, "test")
+				Expect(err).To(MatchError(jetstream.ErrStreamNotFound))
+
+				// Create the source stream
+				_, err = manager.EnsureStream(ctx, &events.StreamConfig{
+					Name: "test",
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				// Publish a message to the source stream
+				_, err = manager.Publish(ctx, &events.PublishConfig{
+					Subject: "test",
+					Data:    Data(&emptypb.Empty{}),
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				// Create the stream with the source
+				_, err = manager.EnsureStream(ctx, &events.StreamConfig{
+					Name: "test2",
+					Sources: []*events.StreamSource{
+						{
+							Name: "test",
+							Pointer: &events.StreamPointer{
+								First: false,
+							},
+						},
+					},
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				time.Sleep(200 * time.Millisecond)
+
+				stream, err := js.Stream(ctx, "test2")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(0)))
 			})
 		})
 	})

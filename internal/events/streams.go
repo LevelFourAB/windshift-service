@@ -209,6 +209,8 @@ func toNatsStreamSource(source *StreamSource) (*jetstream.StreamSource, error) {
 	}
 
 	if source.Pointer != nil {
+		// Pointer has been specified, move away from the default of receiving
+		// all events stored in this stream.
 		if source.Pointer.ID != 0 {
 			res.OptStartSeq = source.Pointer.ID
 		} else if !source.Pointer.Time.IsZero() {
@@ -217,10 +219,6 @@ func toNatsStreamSource(source *StreamSource) (*jetstream.StreamSource, error) {
 			now := time.Now()
 			res.OptStartTime = &now
 		}
-	} else {
-		// No pointer, set that we want to receive new events
-		now := time.Now()
-		res.OptStartTime = &now
 	}
 
 	return res, nil
