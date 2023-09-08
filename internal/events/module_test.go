@@ -65,7 +65,7 @@ func createManagerAndJetStream() (*events.Manager, jetstream.JetStream) {
 	manager, err := events.NewManager(
 		zaptest.NewLogger(GinkgoT()),
 		otel.Tracer("tests"),
-		natsConn,
+		js,
 	)
 	Expect(err).ToNot(HaveOccurred())
 

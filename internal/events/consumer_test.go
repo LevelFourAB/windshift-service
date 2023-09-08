@@ -5,7 +5,7 @@ import (
 	"windshift/service/internal/events"
 
 	"github.com/cockroachdb/errors"
-	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.opentelemetry.io/otel"
@@ -14,18 +14,18 @@ import (
 
 var _ = Describe("Consumers", func() {
 	var manager *events.Manager
-	var js nats.JetStreamContext
+	var js jetstream.JetStream
 
 	BeforeEach(func() {
 		var err error
 		natsConn := GetNATS()
-		js, err = natsConn.JetStream()
+		js, err = jetstream.New(natsConn)
 		Expect(err).ToNot(HaveOccurred())
 
 		manager, err = events.NewManager(
 			zaptest.NewLogger(GinkgoT()),
 			otel.Tracer("tests"),
-			natsConn,
+			js,
 		)
 		Expect(err).ToNot(HaveOccurred())
 	})
@@ -67,9 +67,9 @@ var _ = Describe("Consumers", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			_, err = js.ConsumerInfo("test", "test")
+			_, err = js.Consumer(ctx, "test", "test")
 			Expect(err).To(HaveOccurred())
-			Expect(errors.Is(err, nats.ErrConsumerNotFound)).To(BeTrue())
+			Expect(errors.Is(err, jetstream.ErrConsumerNotFound)).To(BeTrue())
 
 			s, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "test",
@@ -79,7 +79,7 @@ var _ = Describe("Consumers", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			_, err = js.ConsumerInfo("test", s.ID)
+			_, err = js.Consumer(ctx, "test", s.ID)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -101,7 +101,7 @@ var _ = Describe("Consumers", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			_, err = js.ConsumerInfo("test", s.ID)
+			_, err = js.Consumer(ctx, "test", s.ID)
 			Expect(err).ToNot(HaveOccurred())
 
 			s, err = manager.EnsureConsumer(ctx, &events.ConsumerConfig{
@@ -112,9 +112,9 @@ var _ = Describe("Consumers", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ci, err := js.ConsumerInfo("test", s.ID)
+			c, err := js.Consumer(ctx, "test", s.ID)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(ci.Config.FilterSubject).To(Equal("test.2"))
+			Expect(c.CachedInfo().Config.FilterSubject).To(Equal("test.2"))
 		})
 	})
 
@@ -128,9 +128,9 @@ var _ = Describe("Consumers", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			_, err = js.ConsumerInfo("test", "test")
+			_, err = js.Consumer(ctx, "test", "test")
 			Expect(err).To(HaveOccurred())
-			Expect(errors.Is(err, nats.ErrConsumerNotFound)).To(BeTrue())
+			Expect(errors.Is(err, jetstream.ErrConsumerNotFound)).To(BeTrue())
 
 			s, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "test",
@@ -141,7 +141,7 @@ var _ = Describe("Consumers", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			_, err = js.ConsumerInfo("test", s.ID)
+			_, err = js.Consumer(ctx, "test", s.ID)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -164,7 +164,7 @@ var _ = Describe("Consumers", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			_, err = js.ConsumerInfo("test", s.ID)
+			_, err = js.Consumer(ctx, "test", s.ID)
 			Expect(err).ToNot(HaveOccurred())
 
 			s, err = manager.EnsureConsumer(ctx, &events.ConsumerConfig{
@@ -176,9 +176,9 @@ var _ = Describe("Consumers", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ci, err := js.ConsumerInfo("test", s.ID)
+			ci, err := js.Consumer(ctx, "test", s.ID)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(ci.Config.FilterSubject).To(Equal("test.2"))
+			Expect(ci.CachedInfo().Config.FilterSubject).To(Equal("test.2"))
 		})
 	})
 })

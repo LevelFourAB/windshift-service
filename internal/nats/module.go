@@ -3,6 +3,7 @@ package nats
 import (
 	"github.com/levelfourab/sprout-go"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
@@ -13,6 +14,7 @@ var Module = fx.Module(
 	fx.Provide(sprout.Logger("nats"), fx.Private),
 	fx.Provide(sprout.Config("NATS", &Config{}), fx.Private),
 	fx.Provide(newNats),
+	fx.Provide(newJetStream),
 )
 
 type Config struct {
@@ -37,4 +39,8 @@ func newNats(logger *zap.Logger, config *Config) (*nats.Conn, error) {
 			logger.Error("Error processing incoming message", zap.Error(err))
 		}),
 	)
+}
+
+func newJetStream(conn *nats.Conn) (jetstream.JetStream, error) {
+	return jetstream.New(conn, jetstream.WithPublishAsyncMaxPending(256))
 }
