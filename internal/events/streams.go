@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/attribute"
 	semconv "go.opentelemetry.io/otel/semconv/v1.18.0"
 	"go.opentelemetry.io/otel/trace"
@@ -90,15 +90,23 @@ func (m *Manager) EnsureStream(ctx context.Context, config *StreamConfig) (*Stre
 	)
 	defer span.End()
 
-	natsDiscardPolicy := nats.DiscardOld
+	natsDiscardPolicy := jetstream.DiscardOld
 	switch config.DiscardPolicy {
 	case DiscardPolicyOld:
-		natsDiscardPolicy = nats.DiscardOld
+		natsDiscardPolicy = jetstream.DiscardOld
 	case DiscardPolicyNew:
-		natsDiscardPolicy = nats.DiscardNew
+		natsDiscardPolicy = jetstream.DiscardNew
 	}
 
-	streamConfig := &nats.StreamConfig{
+	natsStorageType := jetstream.FileStorage
+	switch config.StorageType {
+	case StorageTypeFile:
+		natsStorageType = jetstream.FileStorage
+	case StorageTypeMemory:
+		natsStorageType = jetstream.MemoryStorage
+	}
+
+	streamConfig := jetstream.StreamConfig{
 		Name:     config.Name,
 		Subjects: config.Subjects,
 
@@ -110,7 +118,7 @@ func (m *Manager) EnsureStream(ctx context.Context, config *StreamConfig) (*Stre
 		Discard:              natsDiscardPolicy,
 		DiscardNewPerSubject: config.DiscardNewPerSubject,
 
-		Storage: nats.StorageType(config.StorageType),
+		Storage: natsStorageType,
 
 		MaxConsumers: -1,
 	}
@@ -125,7 +133,7 @@ func (m *Manager) EnsureStream(ctx context.Context, config *StreamConfig) (*Stre
 	}
 
 	if config.Sources != nil && len(config.Sources) > 0 {
-		sources := make([]*nats.StreamSource, len(config.Sources))
+		sources := make([]*jetstream.StreamSource, len(config.Sources))
 		for i, source := range config.Sources {
 			natsSource, err := toNatsStreamSource(source)
 			if err != nil {
@@ -155,15 +163,16 @@ func (m *Manager) EnsureStream(ctx context.Context, config *StreamConfig) (*Stre
 		streamConfig.MaxMsgSize = int32(*config.MaxEventSize)
 	}
 
-	_, err := m.jetStream.StreamInfo(config.Name)
-	if errors.Is(err, nats.ErrStreamNotFound) {
+	_, err := m.js.Stream(ctx, config.Name)
+	if errors.Is(err, jetstream.ErrStreamNotFound) {
 		// No stream with this name exists
 		m.logger.Info(
 			"Creating stream",
 			zap.String("name", config.Name),
-			zap.Object("config", (*ZapStreamConfig)(streamConfig)),
+			zap.Object("config", (*ZapStreamConfig)(&streamConfig)),
 		)
-		_, err = m.jetStream.AddStream(streamConfig)
+
+		_, err = m.js.CreateStream(ctx, streamConfig)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create JetStream stream")
 		}
@@ -176,9 +185,9 @@ func (m *Manager) EnsureStream(ctx context.Context, config *StreamConfig) (*Stre
 	m.logger.Info(
 		"Updating stream",
 		zap.String("name", config.Name),
-		zap.Object("config", (*ZapStreamConfig)(streamConfig)),
+		zap.Object("config", (*ZapStreamConfig)(&streamConfig)),
 	)
-	_, err = m.jetStream.UpdateStream(streamConfig)
+	_, err = m.js.UpdateStream(ctx, streamConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to update JetStream stream")
 	}
@@ -186,8 +195,8 @@ func (m *Manager) EnsureStream(ctx context.Context, config *StreamConfig) (*Stre
 	return &Stream{}, nil
 }
 
-func toNatsStreamSource(source *StreamSource) (*nats.StreamSource, error) {
-	res := &nats.StreamSource{
+func toNatsStreamSource(source *StreamSource) (*jetstream.StreamSource, error) {
+	res := &jetstream.StreamSource{
 		Name: source.Name,
 	}
 
@@ -217,7 +226,7 @@ func toNatsStreamSource(source *StreamSource) (*nats.StreamSource, error) {
 	return res, nil
 }
 
-type ZapStreamConfig nats.StreamConfig
+type ZapStreamConfig jetstream.StreamConfig
 
 func (c *ZapStreamConfig) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	err := enc.AddArray("subjects", zapcore.ArrayMarshalerFunc(func(enc zapcore.ArrayEncoder) error {
@@ -270,18 +279,18 @@ func (c *ZapStreamConfig) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	}
 
 	switch c.Discard {
-	case nats.DiscardOld:
+	case jetstream.DiscardOld:
 		enc.AddString("discard", "old")
-	case nats.DiscardNew:
+	case jetstream.DiscardNew:
 		enc.AddString("discard", "new")
 	}
 
 	enc.AddBool("discardNewPerSubject", c.DiscardNewPerSubject)
 
 	switch c.Storage {
-	case nats.FileStorage:
+	case jetstream.FileStorage:
 		enc.AddString("storage", "file")
-	case nats.MemoryStorage:
+	case jetstream.MemoryStorage:
 		enc.AddString("storage", "memory")
 	}
 
@@ -296,7 +305,7 @@ func (c *ZapStreamConfig) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return nil
 }
 
-type ZapStreamSource nats.StreamSource
+type ZapStreamSource jetstream.StreamSource
 
 func (s *ZapStreamSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	enc.AddString("name", s.Name)

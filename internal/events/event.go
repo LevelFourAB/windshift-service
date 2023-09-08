@@ -6,7 +6,7 @@ import (
 	"windshift/service/internal/events/flowcontrol"
 
 	"github.com/cockroachdb/errors"
-	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
@@ -28,7 +28,7 @@ type Headers struct {
 type Event struct {
 	span      trace.Span
 	logger    *zap.Logger
-	msg       *nats.Msg
+	msg       jetstream.Msg
 	onProcess func(flowcontrol.ProcessType)
 
 	// Context is the context of this event. It will be valid until the event
@@ -58,16 +58,18 @@ func newEvent(
 	ctx context.Context,
 	span trace.Span,
 	logger *zap.Logger,
-	msg nats.Msg,
-	md *nats.MsgMetadata,
+	msg jetstream.Msg,
+	md *jetstream.MsgMetadata,
 	onProcess func(flowcontrol.ProcessType),
 ) (*Event, error) {
 	headers := &Headers{
 		PublishedAt: md.Timestamp,
 	}
 
+	natsHeaders := msg.Headers()
+
 	// Get the published header
-	publishTimeHeader := msg.Header.Get("WS-Published-Time")
+	publishTimeHeader := natsHeaders.Get("WS-Published-Time")
 	if publishTimeHeader != "" {
 		publishedTime, err := time.Parse(time.RFC3339Nano, publishTimeHeader)
 		if err != nil {
@@ -78,38 +80,35 @@ func newEvent(
 	}
 
 	// Get the idempotency key header
-	idempotencyKeyHeader := msg.Header.Get("Nats-Msg-Id")
+	idempotencyKeyHeader := natsHeaders.Get("Nats-Msg-Id")
 	if idempotencyKeyHeader != "" {
 		headers.IdempotencyKey = &idempotencyKeyHeader
 	}
 
 	// Get the trace parent header
-	traceParentHeader := msg.Header.Get("WS-Trace-Parent")
+	traceParentHeader := natsHeaders.Get("WS-Trace-Parent")
 	if traceParentHeader != "" {
 		headers.TraceParent = &traceParentHeader
 	}
 
 	// Get the trace state header
-	traceStateHeader := msg.Header.Get("WS-Trace-State")
+	traceStateHeader := natsHeaders.Get("WS-Trace-State")
 	if traceStateHeader != "" {
 		headers.TraceState = &traceStateHeader
 	}
 
 	data := &anypb.Any{
-		TypeUrl: "type.googleapis.com/" + msg.Header.Get("WS-Data-Type"),
-		Value:   msg.Data,
+		TypeUrl: "type.googleapis.com/" + natsHeaders.Get("WS-Data-Type"),
+		Value:   msg.Data(),
 	}
-
-	// Clear the data of the message
-	msg.Data = nil
 
 	return &Event{
 		span:        span,
 		logger:      logger,
-		msg:         &msg,
+		msg:         msg,
 		onProcess:   onProcess,
 		Context:     ctx,
-		Subject:     msg.Subject,
+		Subject:     msg.Subject(),
 		ConsumerSeq: md.Sequence.Stream,
 		StreamSeq:   md.Sequence.Consumer,
 		Headers:     headers,
