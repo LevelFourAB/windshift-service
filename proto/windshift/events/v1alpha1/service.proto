@@ -115,7 +115,7 @@ message EnsureStreamRequest {
 		// Stream to mirror. If set can not be changed.
 		StreamSource mirror = 4;
 		// Streams to receive events from.
-		StreamSources sources = 5;
+		StreamSources aggregate = 5;
 	}
 
 	// Configuration for how the stream should be stored.
@@ -328,7 +328,7 @@ message StreamPointer {
 		// The time to start receiving events from.
 		google.protobuf.Timestamp time = 3;
 		// The id of the event to start receiving events from.
-		uint64 id = 5;
+		uint64 offset = 5;
 	}
 }
 

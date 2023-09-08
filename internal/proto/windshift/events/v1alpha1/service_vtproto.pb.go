@@ -720,15 +720,15 @@ func (m *EnsureStreamRequest_Mirror) MarshalToSizedBufferVT(dAtA []byte) (int, e
 	}
 	return len(dAtA) - i, nil
 }
-func (m *EnsureStreamRequest_Sources) MarshalToVT(dAtA []byte) (int, error) {
+func (m *EnsureStreamRequest_Aggregate) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *EnsureStreamRequest_Sources) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *EnsureStreamRequest_Aggregate) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	i := len(dAtA)
-	if m.Sources != nil {
-		size, err := m.Sources.MarshalToSizedBufferVT(dAtA[:i])
+	if m.Aggregate != nil {
+		size, err := m.Aggregate.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -2053,14 +2053,14 @@ func (m *StreamPointer_Time) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	}
 	return len(dAtA) - i, nil
 }
-func (m *StreamPointer_Id) MarshalToVT(dAtA []byte) (int, error) {
+func (m *StreamPointer_Offset) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *StreamPointer_Id) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *StreamPointer_Offset) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	i := len(dAtA)
-	i = encodeVarint(dAtA, i, uint64(m.Id))
+	i = encodeVarint(dAtA, i, uint64(m.Offset))
 	i--
 	dAtA[i] = 0x28
 	return len(dAtA) - i, nil
@@ -2398,14 +2398,14 @@ func (m *EnsureStreamRequest_Mirror) SizeVT() (n int) {
 	}
 	return n
 }
-func (m *EnsureStreamRequest_Sources) SizeVT() (n int) {
+func (m *EnsureStreamRequest_Aggregate) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if m.Sources != nil {
-		l = m.Sources.SizeVT()
+	if m.Aggregate != nil {
+		l = m.Aggregate.SizeVT()
 		n += 1 + l + sov(uint64(l))
 	}
 	return n
@@ -2935,13 +2935,13 @@ func (m *StreamPointer_Time) SizeVT() (n int) {
 	}
 	return n
 }
-func (m *StreamPointer_Id) SizeVT() (n int) {
+func (m *StreamPointer_Offset) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	n += 1 + sov(uint64(m.Id))
+	n += 1 + sov(uint64(m.Offset))
 	return n
 }
 func (m *Event) SizeVT() (n int) {
@@ -3800,7 +3800,7 @@ func (m *EnsureStreamRequest) UnmarshalVT(dAtA []byte) error {
 			iNdEx = postIndex
 		case 5:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Sources", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Aggregate", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -3827,8 +3827,8 @@ func (m *EnsureStreamRequest) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if oneof, ok := m.Source.(*EnsureStreamRequest_Sources); ok {
-				if err := oneof.Sources.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if oneof, ok := m.Source.(*EnsureStreamRequest_Aggregate); ok {
+				if err := oneof.Aggregate.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
 			} else {
@@ -3836,7 +3836,7 @@ func (m *EnsureStreamRequest) UnmarshalVT(dAtA []byte) error {
 				if err := v.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
-				m.Source = &EnsureStreamRequest_Sources{Sources: v}
+				m.Source = &EnsureStreamRequest_Aggregate{Aggregate: v}
 			}
 			iNdEx = postIndex
 		case 6:
@@ -6897,7 +6897,7 @@ func (m *StreamPointer) UnmarshalVT(dAtA []byte) error {
 			iNdEx = postIndex
 		case 5:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Id", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Offset", wireType)
 			}
 			var v uint64
 			for shift := uint(0); ; shift += 7 {
@@ -6914,7 +6914,7 @@ func (m *StreamPointer) UnmarshalVT(dAtA []byte) error {
 					break
 				}
 			}
-			m.Pointer = &StreamPointer_Id{Id: v}
+			m.Pointer = &StreamPointer_Offset{Offset: v}
 		default:
 			iNdEx = preIndex
 			skippy, err := skip(dAtA[iNdEx:])
