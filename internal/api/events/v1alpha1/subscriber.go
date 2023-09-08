@@ -9,6 +9,8 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -56,11 +58,15 @@ func (e *EventsServiceServer) Consume(server eventsv1alpha1.EventsService_Consum
 			}
 			request, err2 := server.Recv()
 			if err2 != nil {
-				e.logger.Warn("Could not receive message", zap.Error(err2))
-				return
-			}
+				if status.Code(err2) == codes.Canceled {
+					// The context is done, can no longer receive any messages
+					return
+				}
 
-			messages <- request
+				e.logger.Warn("Could not receive message", zap.Error(err2))
+			} else {
+				messages <- request
+			}
 		}
 	}()
 
@@ -81,6 +87,8 @@ func (e *EventsServiceServer) Consume(server eventsv1alpha1.EventsService_Consum
 			// If the timeout is reached continue the loop to do a periodic GC
 			continue
 		case <-ctx.Done():
+			return nil
+		case <-e.globalStop:
 			return nil
 		case event := <-queue.Events():
 			eventMap.Add(event)

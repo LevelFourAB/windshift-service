@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"strconv"
+	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
@@ -57,7 +58,21 @@ func newServer(
 			return nil
 		},
 		OnStop: func(context.Context) error {
-			server.GracefulStop()
+			didStop := make(chan struct{})
+			go func() {
+				server.GracefulStop()
+				close(didStop)
+			}()
+
+			select {
+			case <-didStop:
+				// Graceful stop was successful
+				return nil
+			case <-time.After(5 * time.Second):
+				logger.Warn("Could not gracefully stop gRPC server")
+				server.Stop()
+			}
+
 			return nil
 		},
 	})
