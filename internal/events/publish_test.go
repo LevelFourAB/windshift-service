@@ -7,7 +7,7 @@ import (
 	"windshift/service/internal/events"
 	testv1 "windshift/service/internal/proto/windshift/test/v1"
 
-	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -18,7 +18,7 @@ import (
 
 var _ = Describe("Publish", func() {
 	var manager *events.Manager
-	var js nats.JetStreamContext
+	var js jetstream.JetStream
 
 	BeforeEach(func() {
 		manager, js = createManagerAndJetStream()
@@ -50,12 +50,12 @@ var _ = Describe("Publish", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		// Verify that we have the correct number of messages in the stream
-		si, err := js.StreamInfo("events")
+		stream, err := js.Stream(ctx, "events")
 		Expect(err).ToNot(HaveOccurred())
-		Expect(si.State.Msgs).To(Equal(uint64(1)))
+		Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
 
 		// Check the data
-		msg, err := js.GetMsg("events", e.ID)
+		msg, err := stream.GetMsg(ctx, e.ID)
 		Expect(err).ToNot(HaveOccurred())
 
 		// Check that there is a published time header
@@ -90,9 +90,9 @@ var _ = Describe("Publish", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		// Verify that we have the correct number of messages in the stream
-		si, err := js.StreamInfo("events")
+		stream, err := js.Stream(ctx, "events")
 		Expect(err).ToNot(HaveOccurred())
-		Expect(si.State.Msgs).To(Equal(uint64(2)))
+		Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(2)))
 	})
 
 	It("setting published time works", func(ctx context.Context) {
@@ -105,12 +105,12 @@ var _ = Describe("Publish", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		// Verify that we have the correct number of messages in the stream
-		si, err := js.StreamInfo("events")
+		stream, err := js.Stream(ctx, "events")
 		Expect(err).ToNot(HaveOccurred())
-		Expect(si.State.Msgs).To(Equal(uint64(1)))
+		Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
 
 		// Check the data
-		msg, err := js.GetMsg("events", e.ID)
+		msg, err := stream.GetMsg(ctx, e.ID)
 		Expect(err).ToNot(HaveOccurred())
 
 		h := msg.Header.Get("WS-Published-Time")
@@ -133,9 +133,9 @@ var _ = Describe("Publish", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		// Verify that we have the correct number of messages in the stream
-		si, err := js.StreamInfo("events")
+		stream, err := js.Stream(ctx, "events")
 		Expect(err).ToNot(HaveOccurred())
-		Expect(si.State.Msgs).To(Equal(uint64(1)))
+		Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
 	})
 
 	It("setting idempotency key does not stop second publish with different key", func(ctx context.Context) {
@@ -154,9 +154,9 @@ var _ = Describe("Publish", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		// Verify that we have the correct number of messages in the stream
-		si, err := js.StreamInfo("events")
+		stream, err := js.Stream(ctx, "events")
 		Expect(err).ToNot(HaveOccurred())
-		Expect(si.State.Msgs).To(Equal(uint64(2)))
+		Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(2)))
 	})
 
 	It("setting idempotency key stops second publish with different subject", func(ctx context.Context) {
@@ -175,9 +175,9 @@ var _ = Describe("Publish", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		// Verify that we have the correct number of messages in the stream
-		si, err := js.StreamInfo("events")
+		stream, err := js.Stream(ctx, "events")
 		Expect(err).ToNot(HaveOccurred())
-		Expect(si.State.Msgs).To(Equal(uint64(1)))
+		Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
 	})
 
 	It("setting expected sequence works for first message", func(ctx context.Context) {
@@ -190,9 +190,9 @@ var _ = Describe("Publish", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		// Verify that we have the correct number of messages in the stream
-		si, err := js.StreamInfo("events")
+		stream, err := js.Stream(ctx, "events")
 		Expect(err).ToNot(HaveOccurred())
-		Expect(si.State.Msgs).To(Equal(uint64(1)))
+		Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
 	})
 
 	It("setting wrong expected sequence errors for first message", func(ctx context.Context) {
@@ -205,9 +205,9 @@ var _ = Describe("Publish", func() {
 		Expect(err).To(HaveOccurred())
 
 		// Verify that we have the correct number of messages in the stream
-		si, err := js.StreamInfo("events")
+		stream, err := js.Stream(ctx, "events")
 		Expect(err).ToNot(HaveOccurred())
-		Expect(si.State.Msgs).To(Equal(uint64(0)))
+		Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(0)))
 	})
 
 	It("setting expected sequence works for second message", func(ctx context.Context) {
@@ -227,9 +227,9 @@ var _ = Describe("Publish", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		// Verify that we have the correct number of messages in the stream
-		si, err := js.StreamInfo("events")
+		stream, err := js.Stream(ctx, "events")
 		Expect(err).ToNot(HaveOccurred())
-		Expect(si.State.Msgs).To(Equal(uint64(2)))
+		Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(2)))
 	})
 
 	It("setting wrong expected sequence errors for second message", func(ctx context.Context) {
@@ -249,9 +249,9 @@ var _ = Describe("Publish", func() {
 		Expect(err).To(HaveOccurred())
 
 		// Verify that we have the correct number of messages in the stream
-		si, err := js.StreamInfo("events")
+		stream, err := js.Stream(ctx, "events")
 		Expect(err).ToNot(HaveOccurred())
-		Expect(si.State.Msgs).To(Equal(uint64(1)))
+		Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
 	})
 
 	Describe("OpenTelemetry", func() {
@@ -276,12 +276,12 @@ var _ = Describe("Publish", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			// Verify that we have the correct number of messages in the stream
-			si, err := js.StreamInfo("events")
+			stream, err := js.Stream(ctx, "events")
 			Expect(err).ToNot(HaveOccurred())
-			Expect(si.State.Msgs).To(Equal(uint64(1)))
+			Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
 
 			// Check the data
-			msg, err := js.GetMsg("events", 1)
+			msg, err := stream.GetMsg(ctx, 1)
 			Expect(err).ToNot(HaveOccurred())
 
 			h := msg.Header.Get("WS-Trace-Parent")

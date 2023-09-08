@@ -6,7 +6,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/google/uuid"
-	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/attribute"
 	semconv "go.opentelemetry.io/otel/semconv/v1.18.0"
 	"go.opentelemetry.io/otel/trace"
@@ -88,7 +88,7 @@ func (m *Manager) EnsureConsumer(ctx context.Context, config *ConsumerConfig) (*
 }
 
 func (m *Manager) declareEphemeralConsumer(ctx context.Context, config *ConsumerConfig) (string, error) {
-	consumerConfig := &nats.ConsumerConfig{
+	consumerConfig := &jetstream.ConsumerConfig{
 		Name:              uuid.New().String(),
 		InactiveThreshold: 1 * time.Hour,
 	}
@@ -100,7 +100,7 @@ func (m *Manager) declareEphemeralConsumer(ctx context.Context, config *Consumer
 		zap.Object("config", (*ZapConsumerConfig)(consumerConfig)),
 	)
 
-	_, err := m.jetStream.AddConsumer(config.Stream, consumerConfig, nats.Context(ctx))
+	_, err := m.js.CreateOrUpdateConsumer(ctx, config.Stream, *consumerConfig)
 	if err != nil {
 		return "", errors.Wrap(err, "could not create consumer")
 	}
@@ -108,9 +108,9 @@ func (m *Manager) declareEphemeralConsumer(ctx context.Context, config *Consumer
 }
 
 func (m *Manager) declareDurableConsumer(ctx context.Context, config *ConsumerConfig) (string, error) {
-	ci, err := m.jetStream.ConsumerInfo(config.Stream, config.Name, nats.Context(ctx))
+	c, err := m.js.Consumer(ctx, config.Stream, config.Name)
 	if err != nil {
-		if errors.Is(err, nats.ErrConsumerNotFound) {
+		if errors.Is(err, jetstream.ErrConsumerNotFound) {
 			m.logger.Info(
 				"Creating durable consumer",
 				zap.String("stream", config.Stream),
@@ -118,14 +118,14 @@ func (m *Manager) declareDurableConsumer(ctx context.Context, config *ConsumerCo
 			)
 
 			// Consumer does not exist, create it
-			consumerConfig := &nats.ConsumerConfig{
+			consumerConfig := &jetstream.ConsumerConfig{
 				Durable:           config.Name,
 				InactiveThreshold: 30 * 24 * time.Hour,
 			}
 
 			m.setConsumerSettings(consumerConfig, config, false)
 
-			_, err = m.jetStream.AddConsumer(config.Stream, consumerConfig, nats.Context(ctx))
+			_, err = m.js.CreateOrUpdateConsumer(ctx, config.Stream, *consumerConfig)
 			if err != nil {
 				return "", errors.Wrap(err, "could not create consumer")
 			}
@@ -136,7 +136,7 @@ func (m *Manager) declareDurableConsumer(ctx context.Context, config *ConsumerCo
 	}
 
 	// For updates certain fields can not be set, so we only set what we can
-	consumerConfig := ci.Config
+	consumerConfig := c.CachedInfo().Config
 	m.setConsumerSettings(&consumerConfig, config, true)
 
 	// Perform the update
@@ -146,7 +146,7 @@ func (m *Manager) declareDurableConsumer(ctx context.Context, config *ConsumerCo
 		zap.String("name", config.Name),
 		zap.Object("config", (*ZapConsumerConfig)(&consumerConfig)),
 	)
-	_, err = m.jetStream.UpdateConsumer(config.Stream, &consumerConfig, nats.Context(ctx))
+	_, err = m.js.CreateOrUpdateConsumer(ctx, config.Stream, consumerConfig)
 	if err != nil {
 		return "", errors.Wrap(err, "could not update consumer")
 	}
@@ -155,8 +155,8 @@ func (m *Manager) declareDurableConsumer(ctx context.Context, config *ConsumerCo
 
 // setConsumerSettings sets the shared settings for both ephemeral and durable
 // consumers.
-func (m *Manager) setConsumerSettings(c *nats.ConsumerConfig, qc *ConsumerConfig, update bool) {
-	c.AckPolicy = nats.AckExplicitPolicy
+func (m *Manager) setConsumerSettings(c *jetstream.ConsumerConfig, qc *ConsumerConfig, update bool) {
+	c.AckPolicy = jetstream.AckExplicitPolicy
 	// TODO: With NATS 2.10 multiple subjects can be specified
 	c.FilterSubject = qc.Subjects[0]
 
@@ -174,22 +174,22 @@ func (m *Manager) setConsumerSettings(c *nats.ConsumerConfig, qc *ConsumerConfig
 
 	if !update {
 		// When creating a consumer we can specify where to start from
-		c.DeliverPolicy = nats.DeliverNewPolicy
+		c.DeliverPolicy = jetstream.DeliverNewPolicy
 		if qc.Pointer != nil {
 			if !qc.Pointer.Time.IsZero() {
-				c.DeliverPolicy = nats.DeliverByStartTimePolicy
+				c.DeliverPolicy = jetstream.DeliverByStartTimePolicy
 				c.OptStartTime = &qc.Pointer.Time
 			} else if qc.Pointer.ID > 0 {
-				c.DeliverPolicy = nats.DeliverByStartSequencePolicy
+				c.DeliverPolicy = jetstream.DeliverByStartSequencePolicy
 				c.OptStartSeq = qc.Pointer.ID
 			} else if qc.Pointer.First {
-				c.DeliverPolicy = nats.DeliverAllPolicy
+				c.DeliverPolicy = jetstream.DeliverAllPolicy
 			}
 		}
 	}
 }
 
-type ZapConsumerConfig nats.ConsumerConfig
+type ZapConsumerConfig jetstream.ConsumerConfig
 
 func (c *ZapConsumerConfig) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	err := enc.AddArray("subjects", zapcore.ArrayMarshalerFunc(func(enc zapcore.ArrayEncoder) error {
@@ -207,19 +207,19 @@ func (c *ZapConsumerConfig) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	}
 
 	switch c.DeliverPolicy {
-	case nats.DeliverAllPolicy:
+	case jetstream.DeliverAllPolicy:
 		enc.AddString("deliverPolicy", "all")
-	case nats.DeliverNewPolicy:
+	case jetstream.DeliverNewPolicy:
 		enc.AddString("deliverPolicy", "new")
-	case nats.DeliverByStartSequencePolicy:
+	case jetstream.DeliverByStartSequencePolicy:
 		enc.AddString("deliverPolicy", "byStartSequence")
 		enc.AddUint64("startSequence", c.OptStartSeq)
-	case nats.DeliverByStartTimePolicy:
+	case jetstream.DeliverByStartTimePolicy:
 		enc.AddString("deliverPolicy", "byStartTime")
 		enc.AddTime("startTime", *c.OptStartTime)
-	case nats.DeliverLastPolicy:
+	case jetstream.DeliverLastPolicy:
 		enc.AddString("deliverPolicy", "last")
-	case nats.DeliverLastPerSubjectPolicy:
+	case jetstream.DeliverLastPerSubjectPolicy:
 		enc.AddString("deliverPolicy", "lastPerSubject")
 	}
 

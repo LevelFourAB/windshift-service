@@ -100,6 +100,11 @@ func (fc *FlowControl) GetBatchSize() int {
 	return currentLimit - fc.tracker.Count()
 }
 
+func (fc *FlowControl) WaitUntilAvailable() {
+	currentLimit := int(atomic.LoadInt64(&fc.currentProcessingLimit))
+	fc.tracker.WaitUntilLessThan(currentLimit)
+}
+
 func (fc *FlowControl) updateProcessingLimit() {
 	acked := atomic.SwapInt64(&fc.eventsAckedInLastInterval, 0)
 	rejected := atomic.SwapInt64(&fc.eventsRejectedInLastInterval, 0)

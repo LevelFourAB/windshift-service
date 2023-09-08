@@ -3,6 +3,7 @@ package events
 import (
 	"github.com/cockroachdb/errors"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
@@ -13,7 +14,7 @@ type Manager struct {
 	tracer        trace.Tracer
 	w3cPropagator propagation.TextMapPropagator
 
-	jetStream nats.JetStreamContext
+	js jetstream.JetStream
 }
 
 func NewManager(
@@ -21,7 +22,7 @@ func NewManager(
 	tracer trace.Tracer,
 	conn *nats.Conn,
 ) (*Manager, error) {
-	js, err := conn.JetStream()
+	js, err := jetstream.New(conn)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create JetStream channel")
 	}
@@ -30,7 +31,7 @@ func NewManager(
 		logger:        logger,
 		tracer:        tracer,
 		w3cPropagator: propagation.TraceContext{},
-		jetStream:     js,
+		js:            js,
 	}
 
 	return m, nil

@@ -8,7 +8,7 @@ import (
 	"windshift/service/internal/events/flowcontrol"
 
 	"github.com/cockroachdb/errors"
-	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
@@ -30,8 +30,8 @@ type Queue struct {
 	shutdownSignal chan struct{}
 	closed         int64
 
-	subscription *nats.Subscription
-	channel      chan *Event
+	messages jetstream.MessagesContext
+	channel  chan *Event
 
 	Timeout time.Duration
 }
@@ -52,14 +52,21 @@ func (m *Manager) Subscribe(ctx context.Context, config *QueueConfig) (*Queue, e
 		config.MaxPendingEvents = 50
 	}
 
-	ci, err := m.jetStream.ConsumerInfo(config.Stream, config.Name, nats.Context(ctx))
+	consumer, err := m.js.Consumer(ctx, config.Stream, config.Name)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get consumer info")
 	}
 
-	sub, err := m.jetStream.PullSubscribe(ci.Config.FilterSubject, "", nats.Bind(config.Stream, config.Name))
+	maxEvents := config.MaxPendingEvents / 2
+	if maxEvents < 1 {
+		maxEvents = 1
+	}
+	messages, err := consumer.Messages(
+		jetstream.PullExpiry(200*time.Millisecond),
+		jetstream.PullMaxMessages(maxEvents),
+	)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not subscribe")
+		return nil, errors.Wrap(err, "failed to create message subscription")
 	}
 
 	logger := m.logger.With(zap.String("stream", config.Stream), zap.String("subscription", config.Name))
@@ -75,10 +82,10 @@ func (m *Manager) Subscribe(ctx context.Context, config *QueueConfig) (*Queue, e
 		ctxCancel:      cancel,
 		shutdownSignal: make(chan struct{}, 1),
 
-		subscription: sub,
-		channel:      make(chan *Event),
+		messages: messages,
+		channel:  make(chan *Event),
 
-		Timeout: ci.Config.AckWait,
+		Timeout: consumer.CachedInfo().Config.AckWait,
 	}
 
 	go q.pump(ctx, config.MaxPendingEvents)
@@ -94,10 +101,7 @@ func (q *Queue) pump(ctx context.Context, maxPendingEvents uint) {
 	for {
 		if ctx.Err() != nil {
 			q.logger.Debug("Context done, stopping subscription")
-			err := q.subscription.Unsubscribe()
-			if err != nil {
-				q.logger.Warn("failed to unsubscribe", zap.Error(err))
-			}
+			q.messages.Stop()
 
 			atomic.StoreInt64(&q.closed, 1)
 			close(q.channel)
@@ -105,75 +109,52 @@ func (q *Queue) pump(ctx context.Context, maxPendingEvents uint) {
 			return
 		}
 
-		batchSize := fc.GetBatchSize()
-		q.logger.Debug("Fetching batch", zap.Int("size", batchSize))
-
-		subCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
-		defer cancel()
-		batch, err := q.subscription.FetchBatch(batchSize, nats.Context(subCtx))
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		fc.WaitUntilAvailable()
+		msg, err := q.messages.Next()
+		if errors.Is(err, jetstream.ErrMsgIteratorClosed) {
+			q.logger.Debug("iterator closed, stopping")
 			continue
-		} else if errors.Is(err, nats.ErrBadSubscription) {
-			q.logger.Debug("subscription closed, stopping")
-			return
-		} else if errors.Is(err, nats.ErrConnectionClosed) {
-			q.logger.Debug("connection closed, stopping")
-			return
+		} else if errors.Is(err, jetstream.ErrNoHeartbeat) {
+			q.logger.Debug("no heartbeat received")
+			continue
 		} else if err != nil {
 			q.logger.Error("failed to fetch message", zap.Error(err))
 			continue
 		}
 
-		for msg := range batch.Messages() {
-			now := time.Now()
+		now := time.Now()
 
-			if time.Since(now) > timeout {
-				// Timeout, reject the event
-				q.logger.Debug("Timeout, event should be rejected by NATS")
-				continue
-			}
-
-			event, err2 := q.createEvent(ctx, fc, msg)
-			if err2 != nil {
-				continue
-			}
-
-			q.logger.Debug(
-				"Received event",
-				zap.Uint64("streamSeq", event.StreamSeq),
-				zap.Uint64("consumerSeq", event.ConsumerSeq),
-				zap.String("type", string(event.Data.MessageName())),
-			)
-
-			select {
-			case q.channel <- event:
-				// Event sent to channel
-			case <-ctx.Done():
-				// Context is done, stop trying to fetch messages
-				break
-			}
+		if time.Since(now) > timeout {
+			// Timeout, reject the event
+			q.logger.Debug("Timeout, event should be rejected by NATS")
+			continue
 		}
 
-		if batch.Error() != nil {
-			// Handle the error if an error occurred while fetching messages in
-			// the batch
-			if errors.Is(err, nats.ErrBadSubscription) {
-				q.logger.Debug("subscription closed, stopping")
-				return
-			} else if errors.Is(err, nats.ErrConnectionClosed) {
-				q.logger.Debug("connection closed, stopping")
-				return
-			} else if err != nil {
-				q.logger.Error("failed to fetch message", zap.Error(err))
-				continue
-			}
+		event, err2 := q.createEvent(ctx, fc, msg)
+		if err2 != nil {
+			continue
+		}
+
+		q.logger.Debug(
+			"Received event",
+			zap.Uint64("streamSeq", event.StreamSeq),
+			zap.Uint64("consumerSeq", event.ConsumerSeq),
+			zap.String("type", string(event.Data.MessageName())),
+		)
+
+		select {
+		case q.channel <- event:
+			// Event sent to channel
+		case <-ctx.Done():
+			// Context is done, stop trying to fetch messages
+			break
 		}
 	}
 }
 
 // createEvent takes a NATS message, extracts the tracing information and
 // creates an Event that can be passed on to the subscriber.
-func (q *Queue) createEvent(ctx context.Context, fc *flowcontrol.FlowControl, msg *nats.Msg) (*Event, error) {
+func (q *Queue) createEvent(ctx context.Context, fc *flowcontrol.FlowControl, msg jetstream.Msg) (*Event, error) {
 	// We may have tracing information stored in the event headers, so we
 	// extract them and create our own span indicating that we received the
 	// message.
@@ -181,16 +162,17 @@ func (q *Queue) createEvent(ctx context.Context, fc *flowcontrol.FlowControl, ms
 	// Unlike for most tracing the span is only ended in this function if an
 	// error occurs, otherwise it is passed into the event and ended when the
 	// event is consumed.
+	headers := msg.Headers()
 	msgCtx := q.manager.w3cPropagator.Extract(ctx, eventTracingHeaders{
-		headers: &msg.Header,
+		headers: &headers,
 	})
 	msgCtx, span := q.manager.tracer.Start(
 		msgCtx,
-		msg.Subject+" receive", trace.WithSpanKind(trace.SpanKindConsumer),
+		msg.Subject()+" receive", trace.WithSpanKind(trace.SpanKindConsumer),
 		trace.WithAttributes(
 			semconv.MessagingSystem("nats"),
 			semconv.MessagingOperationReceive,
-			semconv.MessagingDestinationName(msg.Subject),
+			semconv.MessagingDestinationName(msg.Subject()),
 		),
 	)
 
@@ -208,7 +190,7 @@ func (q *Queue) createEvent(ctx context.Context, fc *flowcontrol.FlowControl, ms
 	span.SetAttributes(semconv.MessagingMessageID(fmt.Sprintf("%d", md.Sequence.Stream)))
 
 	onProcess := fc.Received(md.Sequence.Consumer)
-	event, err := newEvent(msgCtx, span, q.logger, *msg, md, onProcess)
+	event, err := newEvent(msgCtx, span, q.logger, msg, md, onProcess)
 	if err != nil {
 		q.logger.Error("failed to create event", zap.Error(err))
 		span.RecordError(err)
@@ -236,6 +218,7 @@ func (q *Queue) Close() error {
 		return nil
 	}
 
+	q.messages.Stop()
 	q.ctxCancel()
 	<-q.shutdownSignal
 	return nil

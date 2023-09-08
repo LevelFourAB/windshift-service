@@ -7,6 +7,7 @@ import (
 
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.opentelemetry.io/otel"
@@ -55,10 +56,10 @@ func GetJetStream() nats.JetStreamContext {
 	return js
 }
 
-func createManagerAndJetStream() (*events.Manager, nats.JetStreamContext) {
+func createManagerAndJetStream() (*events.Manager, jetstream.JetStream) {
 	natsConn := GetNATS()
 
-	js, err := natsConn.JetStream()
+	js, err := jetstream.New(natsConn)
 	Expect(err).ToNot(HaveOccurred())
 
 	manager, err := events.NewManager(

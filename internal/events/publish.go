@@ -7,6 +7,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.18.0"
 	"go.opentelemetry.io/otel/trace"
@@ -50,9 +51,7 @@ func (m *Manager) Publish(ctx context.Context, config *PublishConfig) (*Publishe
 		Header:  nats.Header{},
 	}
 
-	publishOpts := []nats.PubOpt{
-		nats.Context(ctx),
-	}
+	publishOpts := []jetstream.PublishOpt{}
 
 	// Set the published time
 	publishTime := time.Now()
@@ -68,7 +67,7 @@ func (m *Manager) Publish(ctx context.Context, config *PublishConfig) (*Publishe
 
 	// Set the expected subject sequence
 	if config.ExpectedSubjectSeq != nil {
-		publishOpts = append(publishOpts, nats.ExpectLastSequencePerSubject(*config.ExpectedSubjectSeq))
+		publishOpts = append(publishOpts, jetstream.WithExpectLastSequencePerSubject(*config.ExpectedSubjectSeq))
 	}
 
 	// Inject the tracing headers
@@ -88,7 +87,7 @@ func (m *Manager) Publish(ctx context.Context, config *PublishConfig) (*Publishe
 	)
 
 	// Publish the message.
-	ack, err := m.jetStream.PublishMsg(msg, publishOpts...)
+	ack, err := m.js.PublishMsg(ctx, msg, publishOpts...)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to publish message")
