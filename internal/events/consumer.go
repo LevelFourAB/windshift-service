@@ -52,8 +52,8 @@ func (m *Manager) EnsureConsumer(ctx context.Context, config *ConsumerConfig) (*
 		return nil, errors.New("stream must be specified")
 	}
 
-	if len(config.Subjects) != 1 {
-		return nil, errors.New("only one subject can be specified")
+	if len(config.Subjects) == 0 {
+		return nil, errors.New("one or more subjects must be specified")
 	}
 
 	var name string
@@ -157,8 +157,12 @@ func (m *Manager) declareDurableConsumer(ctx context.Context, config *ConsumerCo
 // consumers.
 func (m *Manager) setConsumerSettings(c *jetstream.ConsumerConfig, qc *ConsumerConfig, update bool) {
 	c.AckPolicy = jetstream.AckExplicitPolicy
-	// TODO: With NATS 2.10 multiple subjects can be specified
-	c.FilterSubject = qc.Subjects[0]
+	if len(qc.Subjects) == 1 {
+		c.FilterSubject = qc.Subjects[0]
+	} else {
+		c.FilterSubject = ""
+		c.FilterSubjects = qc.Subjects
+	}
 
 	// If a timeout is specified set it or use the default
 	if qc.Timeout > 0 {
@@ -193,7 +197,13 @@ type ZapConsumerConfig jetstream.ConsumerConfig
 
 func (c *ZapConsumerConfig) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	err := enc.AddArray("subjects", zapcore.ArrayMarshalerFunc(func(enc zapcore.ArrayEncoder) error {
-		enc.AppendString(c.FilterSubject)
+		if c.FilterSubjects == nil {
+			enc.AppendString(c.FilterSubject)
+		} else {
+			for _, subject := range c.FilterSubjects {
+				enc.AppendString(subject)
+			}
+		}
 		return nil
 	}))
 	if err != nil {

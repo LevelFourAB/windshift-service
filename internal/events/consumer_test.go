@@ -39,19 +39,16 @@ var _ = Describe("Consumers", func() {
 		})
 
 		It("consumer with zero subjects fails", func(ctx context.Context) {
-			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
-				Stream: "test",
-			})
-			Expect(err).To(HaveOccurred())
-		})
-
-		It("consumer with multiple subjects fails", func(ctx context.Context) {
-			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
-				Stream: "test",
+			_, err := manager.EnsureStream(ctx, &events.StreamConfig{
+				Name: "test",
 				Subjects: []string{
 					"test",
-					"test.>",
 				},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			_, err = manager.EnsureConsumer(ctx, &events.ConsumerConfig{
+				Stream: "test",
 			})
 			Expect(err).To(HaveOccurred())
 		})
@@ -83,7 +80,7 @@ var _ = Describe("Consumers", func() {
 			Expect(err).ToNot(HaveOccurred())
 		})
 
-		It("can update subject of subscription", func(ctx context.Context) {
+		It("can create consumer with multiple subjects", func(ctx context.Context) {
 			_, err := manager.EnsureStream(ctx, &events.StreamConfig{
 				Name: "test",
 				Subjects: []string{
@@ -93,20 +90,14 @@ var _ = Describe("Consumers", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
+			_, err = js.Consumer(ctx, "test", "test")
+			Expect(err).To(HaveOccurred())
+			Expect(errors.Is(err, jetstream.ErrConsumerNotFound)).To(BeTrue())
+
 			s, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "test",
 				Subjects: []string{
 					"test",
-				},
-			})
-			Expect(err).ToNot(HaveOccurred())
-
-			_, err = js.Consumer(ctx, "test", s.ID)
-			Expect(err).ToNot(HaveOccurred())
-
-			s, err = manager.EnsureConsumer(ctx, &events.ConsumerConfig{
-				Stream: "test",
-				Subjects: []string{
 					"test.2",
 				},
 			})
@@ -114,7 +105,8 @@ var _ = Describe("Consumers", func() {
 
 			c, err := js.Consumer(ctx, "test", s.ID)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(c.CachedInfo().Config.FilterSubject).To(Equal("test.2"))
+			Expect(c.CachedInfo().Config.FilterSubject).To(BeEmpty())
+			Expect(c.CachedInfo().Config.FilterSubjects).To(ConsistOf("test", "test.2"))
 		})
 	})
 
@@ -176,9 +168,77 @@ var _ = Describe("Consumers", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ci, err := js.Consumer(ctx, "test", s.ID)
+			c, err := js.Consumer(ctx, "test", s.ID)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(ci.CachedInfo().Config.FilterSubject).To(Equal("test.2"))
+			Expect(c.CachedInfo().Config.FilterSubject).To(Equal("test.2"))
+		})
+
+		It("can create consumer with multiple subjects", func(ctx context.Context) {
+			_, err := manager.EnsureStream(ctx, &events.StreamConfig{
+				Name: "test",
+				Subjects: []string{
+					"test",
+					"test.>",
+				},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			_, err = js.Consumer(ctx, "test", "test")
+			Expect(err).To(HaveOccurred())
+			Expect(errors.Is(err, jetstream.ErrConsumerNotFound)).To(BeTrue())
+
+			s, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
+				Stream: "test",
+				Name:   "test",
+				Subjects: []string{
+					"test",
+					"test.2",
+				},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			c, err := js.Consumer(ctx, "test", s.ID)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(c.CachedInfo().Config.FilterSubject).To(BeEmpty())
+			Expect(c.CachedInfo().Config.FilterSubjects).To(ConsistOf("test", "test.2"))
+		})
+
+		It("can update from one subject to multiple", func(ctx context.Context) {
+			_, err := manager.EnsureStream(ctx, &events.StreamConfig{
+				Name: "test",
+				Subjects: []string{
+					"test",
+					"test.>",
+				},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			s, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
+				Stream: "test",
+				Name:   "test",
+				Subjects: []string{
+					"test",
+				},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			_, err = js.Consumer(ctx, "test", s.ID)
+			Expect(err).ToNot(HaveOccurred())
+
+			s, err = manager.EnsureConsumer(ctx, &events.ConsumerConfig{
+				Stream: "test",
+				Name:   "test",
+				Subjects: []string{
+					"test.2",
+					"test.3",
+				},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			c, err := js.Consumer(ctx, "test", s.ID)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(c.CachedInfo().Config.FilterSubject).To(BeEmpty())
+			Expect(c.CachedInfo().Config.FilterSubjects).To(ConsistOf("test.2", "test.3"))
 		})
 	})
 })
