@@ -16,7 +16,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.16.0
 	go.opentelemetry.io/otel/trace v1.16.0
 	go.uber.org/fx v1.19.3
-	go.uber.org/zap v1.24.0
+	go.uber.org/zap v1.26.0
 	google.golang.org/grpc v1.55.0
 	google.golang.org/protobuf v1.30.0
 )
@@ -25,7 +25,6 @@ require (
 	github.com/Code-Hex/dd v1.1.0 // indirect
 	github.com/KimMachineGun/automemlimit v0.2.6 // indirect
 	github.com/alexliesenfeld/health v0.7.0 // indirect
-	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/caarlos0/env/v7 v7.1.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cilium/ebpf v0.9.1 // indirect
@@ -72,7 +71,6 @@ require (
 	go.opentelemetry.io/otel/metric v1.16.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v0.39.0 // indirect
 	go.opentelemetry.io/proto/otlp v0.19.0 // indirect
-	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/automaxprocs v1.5.3 // indirect
 	go.uber.org/dig v1.16.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
