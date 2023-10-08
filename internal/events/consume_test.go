@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-var _ = Describe("Queue", func() {
+var _ = Describe("Event Consumption", func() {
 	var manager *events.Manager
 
 	BeforeEach(func() {
@@ -30,8 +30,8 @@ var _ = Describe("Queue", func() {
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	Describe("Ephemeral queues", func() {
-		It("can create a queue", func(ctx context.Context) {
+	Describe("Ephemeral consumption", func() {
+		It("can create", func(ctx context.Context) {
 			sub, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Subjects: []string{
@@ -40,23 +40,23 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   sub.ID,
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue.Close()
+			defer ec.Close()
 		})
 
-		It("queue without stream name fails to create", func(ctx context.Context) {
-			_, err := manager.Subscribe(ctx, &events.QueueConfig{
+		It("without stream name fails to create", func(ctx context.Context) {
+			_, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Name: "test",
 			})
 			Expect(err).To(HaveOccurred())
 		})
 
-		It("queue without name fails to create", func(ctx context.Context) {
-			_, err := manager.Subscribe(ctx, &events.QueueConfig{
+		It("without name fails to create", func(ctx context.Context) {
+			_, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 			})
 			Expect(err).To(HaveOccurred())
@@ -71,12 +71,12 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   sub.ID,
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue.Close()
+			defer ec.Close()
 
 			msg := &testv1.StringValue{
 				Value: "test",
@@ -89,7 +89,7 @@ var _ = Describe("Queue", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
-			case event := <-queue.Events():
+			case event := <-ec.Events():
 				Expect(event).ToNot(BeNil())
 				Expect(event.Subject).To(Equal("events.test"))
 				Expect(event.Data).ToNot(BeNil())
@@ -122,19 +122,19 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue1, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec1, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   sub1.ID,
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue1.Close()
+			defer ec1.Close()
 
-			queue2, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec2, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   sub2.ID,
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue2.Close()
+			defer ec2.Close()
 
 			msg, err := anypb.New(&emptypb.Empty{})
 			Expect(err).ToNot(HaveOccurred())
@@ -145,14 +145,14 @@ var _ = Describe("Queue", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
-			case event := <-queue1.Events():
+			case event := <-ec1.Events():
 				Expect(event).ToNot(BeNil())
 			case <-time.After(200 * time.Millisecond):
 				Fail("no event received")
 			}
 
 			select {
-			case event := <-queue2.Events():
+			case event := <-ec2.Events():
 				Expect(event).ToNot(BeNil())
 			case <-time.After(200 * time.Millisecond):
 				Fail("no event received")
@@ -176,15 +176,15 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   sub.ID,
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue.Close()
+			defer ec.Close()
 
 			select {
-			case <-queue.Events():
+			case <-ec.Events():
 				Fail("received event")
 			case <-time.After(200 * time.Millisecond):
 			}
@@ -210,15 +210,15 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   sub.ID,
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue.Close()
+			defer ec.Close()
 
 			select {
-			case event := <-queue.Events():
+			case event := <-ec.Events():
 				Expect(event).ToNot(BeNil())
 			case <-time.After(200 * time.Millisecond):
 				Fail("no event received")
@@ -226,8 +226,8 @@ var _ = Describe("Queue", func() {
 		})
 	})
 
-	Describe("Durable queues", func() {
-		It("can create a queue", func(ctx context.Context) {
+	Describe("Durable consumption", func() {
+		It("can create", func(ctx context.Context) {
 			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Name:   "test",
@@ -237,12 +237,12 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue.Close()
+			defer ec.Close()
 		})
 
 		It("can receive events", func(ctx context.Context) {
@@ -255,12 +255,12 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue.Close()
+			defer ec.Close()
 
 			msg, err := anypb.New(&emptypb.Empty{})
 			Expect(err).ToNot(HaveOccurred())
@@ -271,7 +271,7 @@ var _ = Describe("Queue", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
-			case event := <-queue.Events():
+			case event := <-ec.Events():
 				Expect(event).ToNot(BeNil())
 
 				err = event.Ack()
@@ -296,19 +296,19 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue1, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec1, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue1.Close()
+			defer ec1.Close()
 
-			queue2, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec2, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue2.Close()
+			defer ec2.Close()
 
 			for i := 0; i < 10; i++ {
 				msg, err2 := anypb.New(&emptypb.Empty{})
@@ -321,19 +321,19 @@ var _ = Describe("Queue", func() {
 			}
 
 			eventsReceived := 0
-			queue1EventsReceived := 0
-			queue2EventsReceived := 0
+			ec1EventsReceived := 0
+			ec2EventsReceived := 0
 		_outer:
 			for {
 				select {
-				case e := <-queue1.Events():
+				case e := <-ec1.Events():
 					eventsReceived++
-					queue1EventsReceived++
+					ec1EventsReceived++
 					err = e.Ack()
 					Expect(err).ToNot(HaveOccurred())
-				case e := <-queue2.Events():
+				case e := <-ec2.Events():
 					eventsReceived++
-					queue2EventsReceived++
+					ec2EventsReceived++
 					err = e.Ack()
 					Expect(err).ToNot(HaveOccurred())
 				case <-time.After(500 * time.Millisecond):
@@ -344,9 +344,9 @@ var _ = Describe("Queue", func() {
 			// Check that the right number of events were received
 			Expect(eventsReceived).To(BeNumerically("==", 10))
 
-			// Make sure that each queue has received at least one event
-			Expect(queue1EventsReceived).To(BeNumerically(">", 0))
-			Expect(queue2EventsReceived).To(BeNumerically(">", 0))
+			// Make sure that each instance has received at least one event
+			Expect(ec1EventsReceived).To(BeNumerically(">", 0))
+			Expect(ec2EventsReceived).To(BeNumerically(">", 0))
 		})
 
 		It("multiple subscribers with different names receive same events", func(ctx context.Context) {
@@ -368,19 +368,19 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue1, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec1, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test1",
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue1.Close()
+			defer ec1.Close()
 
-			queue2, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec2, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test2",
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue2.Close()
+			defer ec2.Close()
 
 			msg, err := anypb.New(&emptypb.Empty{})
 			Expect(err).ToNot(HaveOccurred())
@@ -391,21 +391,21 @@ var _ = Describe("Queue", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
-			case event := <-queue1.Events():
+			case event := <-ec1.Events():
 				Expect(event).ToNot(BeNil())
 			case <-time.After(200 * time.Millisecond):
 				Fail("no event received")
 			}
 
 			select {
-			case event := <-queue2.Events():
+			case event := <-ec2.Events():
 				Expect(event).ToNot(BeNil())
 			case <-time.After(200 * time.Millisecond):
 				Fail("no event received")
 			}
 		})
 
-		It("closing a queue stops receiving events", func(ctx context.Context) {
+		It("closing stops receiving events", func(ctx context.Context) {
 			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Name:   "test",
@@ -415,7 +415,7 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
@@ -429,11 +429,11 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue.Close()
+			ec.Close()
 
 			// Check if the event can be received again
 			select {
-			case _, ok := <-queue.Events():
+			case _, ok := <-ec.Events():
 				if ok {
 					Fail("event received after close")
 				}
@@ -452,12 +452,12 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue.Close()
+			defer ec.Close()
 
 			msg, err := anypb.New(&emptypb.Empty{})
 			Expect(err).ToNot(HaveOccurred())
@@ -468,7 +468,7 @@ var _ = Describe("Queue", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
-			case event := <-queue.Events():
+			case event := <-ec.Events():
 				Expect(event).ToNot(BeNil())
 
 				err = event.Ack()
@@ -478,7 +478,7 @@ var _ = Describe("Queue", func() {
 			}
 
 			select {
-			case <-queue.Events():
+			case <-ec.Events():
 				Fail("event received again")
 			case <-time.After(200 * time.Millisecond):
 				// Make sure event isn't delivered for a certain period
@@ -496,12 +496,12 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue.Close()
+			defer ec.Close()
 
 			msg, err := anypb.New(&emptypb.Empty{})
 			Expect(err).ToNot(HaveOccurred())
@@ -512,7 +512,7 @@ var _ = Describe("Queue", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
-			case event := <-queue.Events():
+			case event := <-ec.Events():
 				Expect(event).ToNot(BeNil())
 
 				event.DiscardData()
@@ -523,7 +523,7 @@ var _ = Describe("Queue", func() {
 			}
 
 			select {
-			case <-queue.Events():
+			case <-ec.Events():
 				Fail("event received again")
 			case <-time.After(200 * time.Millisecond):
 				// Make sure event isn't delivered for a certain period
@@ -541,12 +541,12 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue.Close()
+			defer ec.Close()
 
 			msg, err := anypb.New(&emptypb.Empty{})
 			Expect(err).ToNot(HaveOccurred())
@@ -557,7 +557,7 @@ var _ = Describe("Queue", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
-			case event := <-queue.Events():
+			case event := <-ec.Events():
 				Expect(event).ToNot(BeNil())
 
 				err = event.Reject()
@@ -567,7 +567,7 @@ var _ = Describe("Queue", func() {
 			}
 
 			select {
-			case event := <-queue.Events():
+			case event := <-ec.Events():
 				Expect(event).ToNot(BeNil())
 
 				err = event.Ack()
@@ -593,12 +593,12 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue.Close()
+			defer ec.Close()
 
 			msg, err := anypb.New(&emptypb.Empty{})
 			Expect(err).ToNot(HaveOccurred())
@@ -609,7 +609,7 @@ var _ = Describe("Queue", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
-			case event := <-queue.Events():
+			case event := <-ec.Events():
 				Expect(event).ToNot(BeNil())
 
 				event.DiscardData()
@@ -620,7 +620,7 @@ var _ = Describe("Queue", func() {
 			}
 
 			select {
-			case event := <-queue.Events():
+			case event := <-ec.Events():
 				Expect(event).ToNot(BeNil())
 
 				err = event.Ack()
@@ -630,7 +630,7 @@ var _ = Describe("Queue", func() {
 			}
 		})
 
-		It("rejecting event redelivers it to another queue", func(ctx context.Context) {
+		It("rejecting event redelivers it to another instance", func(ctx context.Context) {
 			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "events",
 				Name:   "test",
@@ -640,20 +640,20 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue1, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec1, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue2, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec2, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			defer queue1.Close()
-			defer queue2.Close()
+			defer ec1.Close()
+			defer ec2.Close()
 
 			msg, err := anypb.New(&emptypb.Empty{})
 			Expect(err).ToNot(HaveOccurred())
@@ -663,9 +663,9 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			event := <-queue1.Events()
+			event := <-ec1.Events()
 			Expect(event).ToNot(BeNil())
-			err = queue1.Close()
+			err = ec1.Close()
 			Expect(err).ToNot(HaveOccurred())
 
 			err = event.Reject()
@@ -673,7 +673,7 @@ var _ = Describe("Queue", func() {
 
 			// Receive the event again
 			select {
-			case event = <-queue2.Events():
+			case event = <-ec2.Events():
 				Expect(event).ToNot(BeNil())
 			case <-time.After(500 * time.Millisecond):
 				Fail("timeout waiting for event")
@@ -691,12 +691,12 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue.Close()
+			defer ec.Close()
 
 			msg, err := anypb.New(&emptypb.Empty{})
 			Expect(err).ToNot(HaveOccurred())
@@ -707,7 +707,7 @@ var _ = Describe("Queue", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
-			case event := <-queue.Events():
+			case event := <-ec.Events():
 				Expect(event).ToNot(BeNil())
 			case <-time.After(200 * time.Millisecond):
 				Fail("no event received")
@@ -716,7 +716,7 @@ var _ = Describe("Queue", func() {
 			time.Sleep(200 * time.Millisecond)
 
 			select {
-			case event := <-queue.Events():
+			case event := <-ec.Events():
 				Expect(event).ToNot(BeNil())
 
 				err = event.Ack()
@@ -741,12 +741,12 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue.Close()
+			defer ec.Close()
 
 			msg, err := anypb.New(&emptypb.Empty{})
 			Expect(err).ToNot(HaveOccurred())
@@ -756,7 +756,7 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			event := <-queue.Events()
+			event := <-ec.Events()
 			Expect(event).ToNot(BeNil())
 
 			start := time.Now()
@@ -765,7 +765,7 @@ var _ = Describe("Queue", func() {
 
 			// Receive the event again
 			select {
-			case <-queue.Events():
+			case <-ec.Events():
 				if time.Since(start) < 100*time.Millisecond {
 					Fail("event received too early")
 				}
@@ -784,12 +784,12 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue.Close()
+			defer ec.Close()
 
 			msg, err := anypb.New(&emptypb.Empty{})
 			Expect(err).ToNot(HaveOccurred())
@@ -799,7 +799,7 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			event := <-queue.Events()
+			event := <-ec.Events()
 			Expect(event).ToNot(BeNil())
 
 			err = event.RejectPermanently()
@@ -807,7 +807,7 @@ var _ = Describe("Queue", func() {
 
 			// Receive the event again
 			select {
-			case <-queue.Events():
+			case <-ec.Events():
 				Fail("event received again")
 			case <-time.After(200 * time.Millisecond):
 			}
@@ -824,12 +824,12 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue.Close()
+			defer ec.Close()
 
 			msg, err := anypb.New(&emptypb.Empty{})
 			Expect(err).ToNot(HaveOccurred())
@@ -839,7 +839,7 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			event := <-queue.Events()
+			event := <-ec.Events()
 			Expect(event).ToNot(BeNil())
 
 			err = event.Reject()
@@ -847,7 +847,7 @@ var _ = Describe("Queue", func() {
 
 			// Receive the event again
 			select {
-			case <-queue.Events():
+			case <-ec.Events():
 				Fail("event received again")
 			case <-time.After(200 * time.Millisecond):
 			}
@@ -875,12 +875,12 @@ var _ = Describe("Queue", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			queue, err := manager.Subscribe(ctx, &events.QueueConfig{
+			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   sub.ID,
 			})
 			Expect(err).ToNot(HaveOccurred())
-			defer queue.Close()
+			defer ec.Close()
 
 			_, err = manager.Publish(ctx, &events.PublishConfig{
 				Subject: "events.test",
@@ -889,7 +889,7 @@ var _ = Describe("Queue", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
-			case event := <-queue.Events():
+			case event := <-ec.Events():
 				Expect(event).ToNot(BeNil())
 
 				eventSpan := trace.SpanFromContext(event.Context)
