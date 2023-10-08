@@ -1,7 +1,12 @@
 package events
 
-import "github.com/nats-io/nats.go"
+import (
+	"github.com/nats-io/nats.go"
+	"go.opentelemetry.io/otel/propagation"
+)
 
+// eventTracingHeaders is a wrapper around NATS headers that implements the
+// propagation.TextMapCarrier interface.
 type eventTracingHeaders struct {
 	headers *nats.Header
 }
@@ -35,3 +40,5 @@ func (h eventTracingHeaders) Keys() []string {
 	}
 	return res
 }
+
+var _ propagation.TextMapCarrier = eventTracingHeaders{}
