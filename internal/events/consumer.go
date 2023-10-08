@@ -14,28 +14,55 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// StreamPointer is a pointer to a position in a stream. It is used when
+// creating a consumer to specify where to start consuming from.
+//
+// Only one of the fields should be set. If no field is set the policy is
+// interpreted as an intent to only consume new events.
 type StreamPointer struct {
-	ID    uint64
-	Time  time.Time
+	// ID is the ID of the message to start consuming from.
+	ID uint64
+	// Time is the time to start consuming from.
+	Time time.Time
+	// First indicates that the consumer should start consuming from the
+	// first message in the stream.
 	First bool
 }
 
+// ConsumerConfig is the configuration for creating a consumer.
 type ConsumerConfig struct {
-	Name     string
-	Stream   string
+	// Name of the consumer. If empty, an ephemeral consumer will be created.
+	Name string
+	// Stream to consume events from. Must be specified and should be created
+	// using Manager.EnsureStream().
+	Stream string
+	// Subjects to consume events from. At least one subject must be specified,
+	// and multiple subjects are supported from NATS 2.10+.
 	Subjects []string
 
+	// Timeout is the timeout for processing an event. If not specified, the
+	// default timeout of 30 seconds will be used.
 	Timeout time.Duration
 
+	// MaxDeliveryAttempts is the maximum number of times an event will be
+	// delivered before it is considered failed.
 	MaxDeliveryAttempts uint
 
+	// Pointer describes where to start consuming from. If not specified, the
+	// default policy is to only consume new events.
 	Pointer *StreamPointer
 }
 
+// Consumer describes a consumer of events from a stream.
 type Consumer struct {
+	// ID is the ID of the consumer.
 	ID string
 }
 
+// EnsureConsumer ensures that a consumer exists for the specified stream and
+// name. Name can be empty, in which case an ephemeral consumer will be created.
+// If the consumer already exists, it will be updated with the specified
+// configuration.
 func (m *Manager) EnsureConsumer(ctx context.Context, config *ConsumerConfig) (*Consumer, error) {
 	ctx, span := m.tracer.Start(
 		ctx,
@@ -87,6 +114,9 @@ func (m *Manager) EnsureConsumer(ctx context.Context, config *ConsumerConfig) (*
 	}, nil
 }
 
+// declareEphemeralConsumer creates an ephemeral consumer. Ephemeral consumers
+// are automatically deleted when they have not been used for a period of time,
+// and are useful for one-off consumers.
 func (m *Manager) declareEphemeralConsumer(ctx context.Context, config *ConsumerConfig) (string, error) {
 	consumerConfig := &jetstream.ConsumerConfig{
 		Name:              uuid.New().String(),
@@ -107,6 +137,9 @@ func (m *Manager) declareEphemeralConsumer(ctx context.Context, config *Consumer
 	return consumerConfig.Name, nil
 }
 
+// declareDurableConsumer creates a durable consumer. Durable consumers are
+// useful for long-running consumers that need to be able to resume event
+// processing.
 func (m *Manager) declareDurableConsumer(ctx context.Context, config *ConsumerConfig) (string, error) {
 	c, err := m.js.Consumer(ctx, config.Stream, config.Name)
 	if err != nil {
@@ -193,6 +226,8 @@ func (m *Manager) setConsumerSettings(c *jetstream.ConsumerConfig, qc *ConsumerC
 	}
 }
 
+// ZapConsumerConfig is a wrapper around jetstream.ConsumerConfig that
+// makes it loggable in a structured way.
 type ZapConsumerConfig jetstream.ConsumerConfig
 
 func (c *ZapConsumerConfig) MarshalLogObject(enc zapcore.ObjectEncoder) error {

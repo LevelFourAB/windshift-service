@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
+// PublishConfig is the configuration for publishing an event.
 type PublishConfig struct {
 	// Subject to publish event to
 	Subject string
@@ -28,10 +29,13 @@ type PublishConfig struct {
 	IdempotencyKey string
 }
 
+// PublishedEvent contains information about a published event.
 type PublishedEvent struct {
+	// ID is the sequence number of the event.
 	ID uint64
 }
 
+// Publish publishes an event to a stream.
 func (m *Manager) Publish(ctx context.Context, config *PublishConfig) (*PublishedEvent, error) {
 	ctx, span := m.tracer.Start(
 		ctx,
