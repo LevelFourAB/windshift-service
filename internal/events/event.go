@@ -21,7 +21,7 @@ type Headers struct {
 	TraceState     *string
 }
 
-// Event represents a single event from the event queue. It is received via
+// Event represents a single event consumed from a stream. It is received via
 // NATS and should be processed within a certain deadline, using Ack() or
 // Reject(shouldRetry) to acknowledge the event. If the deadline is exceeded,
 // the event will be redelivered. To extend the deadline, use Ping().
@@ -38,12 +38,12 @@ type Event struct {
 	// Subject is the subject the event was published to.
 	Subject string
 
-	// ConsumerSeq is the sequence number of the event in the queue.
+	// ConsumerSeq is the sequence number of the event.
 	ConsumerSeq uint64
 
 	// StreamSeq is the sequence number of the event in the event stream. Can
 	// be used for resuming from a certain point in time. For example with an
-	// ephemeral queue, the consumer can store the last seen StreamSeq and
+	// ephemeral consumer, the consumer can store the last seen StreamSeq and
 	// resume from there on the next run.
 	StreamSeq uint64
 
@@ -137,7 +137,7 @@ func (e *Event) Ping() error {
 	return nil
 }
 
-// Ack acknowledges the event. The event will be removed from the queue.
+// Ack acknowledges the event. The event will be removed from the consumer.
 func (e *Event) Ack() error {
 	defer e.span.End()
 

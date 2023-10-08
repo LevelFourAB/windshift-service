@@ -23,25 +23,25 @@ func (e *EventsServiceServer) Consume(server eventsv1alpha1.EventsService_Consum
 		return errors.Wrap(err, "could not receive initial subscription")
 	}
 
-	var queue *events.Queue
+	var events *events.Events
 	if sub := subscribe.GetSubscribe(); sub != nil {
-		config := e.createQueueConfig(sub)
+		config := e.createEventConsumeConfig(sub)
 
 		var err2 error
-		queue, err2 = e.events.Subscribe(ctx, config)
+		events, err2 = e.events.Consume(ctx, config)
 		if err2 != nil {
 			return errors.Wrap(err2, "could not subscribe")
 		}
 	} else {
 		return errors.New("first message must be a subscribe")
 	}
-	defer queue.Close()
+	defer events.Close()
 
 	// Send initial response
 	err = server.Send(&eventsv1alpha1.ConsumeResponse{
 		Response: &eventsv1alpha1.ConsumeResponse_Subscribed_{
 			Subscribed: &eventsv1alpha1.ConsumeResponse_Subscribed{
-				ProcessingTimeout: durationpb.New(queue.Timeout),
+				ProcessingTimeout: durationpb.New(events.Timeout),
 			},
 		},
 	})
@@ -72,7 +72,7 @@ func (e *EventsServiceServer) Consume(server eventsv1alpha1.EventsService_Consum
 
 	eventMap := newEventTracker()
 
-	timeout := queue.Timeout
+	timeout := events.Timeout
 	lastGC := time.Now()
 
 	for {
@@ -90,7 +90,7 @@ func (e *EventsServiceServer) Consume(server eventsv1alpha1.EventsService_Consum
 			return nil
 		case <-e.globalStop:
 			return nil
-		case event := <-queue.Events():
+		case event := <-events.Events():
 			eventMap.Add(event)
 
 			// Create the common headers
@@ -294,13 +294,13 @@ func (e *EventsServiceServer) handlePing(
 	return nil
 }
 
-func (*EventsServiceServer) createQueueConfig(sub *eventsv1alpha1.ConsumeRequest_Subscribe) *events.QueueConfig {
+func (*EventsServiceServer) createEventConsumeConfig(sub *eventsv1alpha1.ConsumeRequest_Subscribe) *events.EventConsumeConfig {
 	maxPendingEvents := uint(0)
 	if sub.MaxProcessingEvents != nil {
 		maxPendingEvents = uint(*sub.MaxProcessingEvents)
 	}
 
-	return &events.QueueConfig{
+	return &events.EventConsumeConfig{
 		Stream:           sub.Stream,
 		Name:             sub.Consumer,
 		MaxPendingEvents: maxPendingEvents,
