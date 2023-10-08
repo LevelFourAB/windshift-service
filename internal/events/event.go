@@ -13,12 +13,17 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
+// Headers contains information about an event.
 type Headers struct {
 	// PublishedAt is the time the event was published by the producer.
-	PublishedAt    time.Time
+	PublishedAt time.Time
+	// IdempotencyKey is the idempotency key of the event. An idempotency key
+	// is used to ensure that an event is only published once. May be empty.
 	IdempotencyKey *string
-	TraceParent    *string
-	TraceState     *string
+	// TraceParent is the trace parent of the event. May be empty.
+	TraceParent *string
+	// TraceState is the trace state of the event. May be empty.
+	TraceState *string
 }
 
 // Event represents a single event consumed from a stream. It is received via

@@ -13,20 +13,31 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// DiscardPolicy controls the policy for discarding messages when the
+// stream reaches its maximum size.
 type DiscardPolicy int
 
 const (
+	// DiscardPolicyOld discards old messages when the stream reaches its
+	// maximum size.
 	DiscardPolicyOld DiscardPolicy = iota
+	// DiscardPolicyNew discards new messages when the stream reaches its
+	// maximum size.
 	DiscardPolicyNew
 )
 
+// StorageType controls the type of storage to use for a stream.
 type StorageType int
 
 const (
+	// StorageTypeFile uses file storage for the stream.
 	StorageTypeFile StorageType = iota
+	// StorageTypeMemory uses memory storage for the stream.
 	StorageTypeMemory
 )
 
+// StreamSource defines a source for events in a stream. It is used for
+// mirroring and sourcing events from other streams.
 type StreamSource struct {
 	// Name of the stream to mirror.
 	Name string
@@ -36,6 +47,7 @@ type StreamSource struct {
 	FilterSubjects []string
 }
 
+// StreamConfig is the configuration for creating or updating a stream.
 type StreamConfig struct {
 	// Name of the stream.
 	Name string
@@ -75,9 +87,11 @@ type StreamConfig struct {
 	MaxEventSize *uint
 }
 
+// Stream contains information about a stream.
 type Stream struct{}
 
 // EnsureStream ensures that a JetStream stream exists with the given configuration.
+// If the stream already exists, it will be updated with the new configuration.
 func (m *Manager) EnsureStream(ctx context.Context, config *StreamConfig) (*Stream, error) {
 	_, span := m.tracer.Start(
 		ctx,

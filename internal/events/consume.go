@@ -15,27 +15,71 @@ import (
 	"go.uber.org/zap"
 )
 
+// EventConsumeConfig is the configuration for consuming events from a stream.
 type EventConsumeConfig struct {
-	Stream           string
-	Name             string
+	// Stream is the name of the stream to consume events from.
+	Stream string
+	// Name is the name of the consumer to consume events from.
+	Name string
+	// MaxPendingEvents is the maximum number of events that can be pending
+	// before the consumer will stop receiving events. If set to 0, a default
+	// value of 50 will be used.
 	MaxPendingEvents uint
 }
 
+// Events is used to receive events from a stream. Events are tied to an
+// an already defined consumer which has been previously defined using
+// Manager.EnsureConsumer().
 type Events struct {
+	// manager is the event manager.
 	manager *Manager
-	logger  *zap.Logger
+	// logger is the logger used by the event consumer.
+	logger *zap.Logger
 
-	ctx            context.Context
-	ctxCancel      context.CancelFunc
+	// ctx is the context of the event consumer.
+	ctx context.Context
+	// ctxCancel is used to cancel the context.
+	ctxCancel context.CancelFunc
+	// shutdownSignal is used to signal that the actual receiving of events
+	// has stopped.
 	shutdownSignal chan struct{}
-	closed         int64
+	// closed is used to indicate that the instance has been closed.
+	closed int64
 
+	// messages is the NATS subscription used to receive messages.
 	messages jetstream.MessagesContext
-	channel  chan *Event
+	// channel is the channel used to send events to the caller.
+	channel chan *Event
 
+	// Timeout is the timeout for processing an event. Will be fetched
+	// from the consumer configuration.
 	Timeout time.Duration
 }
 
+// Consume creates a new event consumer for the specified stream and consumer.
+// The consumer must have been previously created using Manager.EnsureConsumer().
+//
+// The returned Events instance must be closed when it is no longer needed.
+// This will stop the event consumer and wait for any pending events to be
+// processed.
+//
+// This will honor the context passed in, and will stop the event consumer
+// when the context is done.
+//
+// Example:
+//
+//	events, err := manager.Consume(ctx, &events.EventConsumeConfig{
+//		Stream: "my-stream",
+//		Name:   "my-consumer",
+//	})
+//	if err != nil {
+//		// Handle error
+//	}
+//	defer events.Close()
+//
+//	for event := range events.Events() {
+//		// Handle event
+//	}
 func (m *Manager) Consume(ctx context.Context, config *EventConsumeConfig) (*Events, error) {
 	ctx, span := m.tracer.Start(ctx, config.Stream+" subscribe")
 	defer span.End()
@@ -49,6 +93,7 @@ func (m *Manager) Consume(ctx context.Context, config *EventConsumeConfig) (*Eve
 	}
 
 	if config.MaxPendingEvents == 0 {
+		// Default to 50 pending events
 		config.MaxPendingEvents = 50
 	}
 
@@ -218,6 +263,8 @@ func (q *Events) createEvent(ctx context.Context, fc *flowcontrol.FlowControl, m
 	return event, nil
 }
 
+// Close closes the event consumer. Will stop receiving events and wait for
+// pending events to be processed.
 func (q *Events) Close() error {
 	if atomic.LoadInt64(&q.closed) == 1 {
 		return nil
@@ -229,6 +276,7 @@ func (q *Events) Close() error {
 	return nil
 }
 
+// Events returns the channel that events will be sent to.
 func (q *Events) Events() <-chan *Event {
 	return q.channel
 }

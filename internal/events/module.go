@@ -5,6 +5,7 @@ import (
 	"go.uber.org/fx"
 )
 
+// Module for FX that enables events.
 var Module = fx.Module(
 	"events",
 	fx.Provide(sprout.Logger("events"), fx.Private),
