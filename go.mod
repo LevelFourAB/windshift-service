@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/cockroachdb/errors v1.9.1
 	github.com/google/uuid v1.3.0
-	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.0.0-rc.5
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.0.1
 	github.com/levelfourab/sprout-go v0.10.1
 	github.com/nats-io/nats-server/v2 v2.10.1
 	github.com/nats-io/nats.go v1.30.2
