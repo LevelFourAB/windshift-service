@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 // keyValueStoreCache is used to keep track of active nats.KeyValue buckets. Will expire
@@ -14,17 +14,17 @@ type keyValueStoreCache struct {
 	mu         sync.Mutex
 	items      map[string]*cacheItem
 	maxAge     time.Duration
-	createFunc func(ctx context.Context, name string) (nats.KeyValue, error)
+	createFunc func(ctx context.Context, name string) (jetstream.KeyValue, error)
 
 	stopCh chan struct{}
 }
 
 type cacheItem struct {
-	value      nats.KeyValue
+	value      jetstream.KeyValue
 	lastAccess time.Time
 }
 
-func newKeyValueStoreCache(maxAge time.Duration, createFunc func(ctx context.Context, name string) (nats.KeyValue, error)) *keyValueStoreCache {
+func newKeyValueStoreCache(maxAge time.Duration, createFunc func(ctx context.Context, name string) (jetstream.KeyValue, error)) *keyValueStoreCache {
 	cache := &keyValueStoreCache{
 		items:      make(map[string]*cacheItem),
 		maxAge:     maxAge,
@@ -54,7 +54,7 @@ func (c *keyValueStoreCache) Destroy() {
 	close(c.stopCh)
 }
 
-func (c *keyValueStoreCache) Get(ctx context.Context, key string) (nats.KeyValue, error) {
+func (c *keyValueStoreCache) Get(ctx context.Context, key string) (jetstream.KeyValue, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
