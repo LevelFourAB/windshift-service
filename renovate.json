@@ -32,11 +32,11 @@
 		{
 			"groupName": "Test dependencies",
 			"matchPackageNames": [
-			  "github.com/onsi/ginkgo/v2",
-			  "github.com/onsi/gomega",
-			  "github.com/nats-io/nats-server/v2"
+				"github.com/onsi/ginkgo/v2",
+				"github.com/onsi/gomega",
+				"github.com/nats-io/nats-server/v2"
 			],
-			"semanticCommitType": "build"
+			"semanticCommitType": "test"
 		},
 		{
 			"groupName": "pre-commit",
