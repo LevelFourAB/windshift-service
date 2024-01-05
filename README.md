@@ -20,6 +20,10 @@ Protobuf messages, to allow your events to evolve over time.
   - 🔄 Automatic redelivery of failed events, events can be acknowledged or
     rejected by consumers
   - 🔔 Ability to extend processing time by pinging events
+- 💾 State storage
+  - 🗄 Supports multiple key-value stores for storing state
+  - 📄 Values in Protobuf format, for strong typing and schema evolution
+  - 🔄 Optimistic concurrency control using compare and swap based on revisions
 - 🔍 Observability via OpenTelemetry tracing and metrics
 
 ### Planned features

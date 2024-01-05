@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package windshift.state.v1alpha1;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+
+/**
+ * StateService is a service for storing and retrieving arbitrary data. It can
+ * be used by clients to store and retrieve stateful information, providing a
+ * a convenient way to store data without having to manage a database.
+ */
+service StateService {
+	/**
+	 * EnsureStore ensures that a store exists. If the store does not exist, it
+	 * will be created.
+	 */
+	rpc EnsureStore(EnsureStoreRequest) returns (EnsureStoreResponse);
+
+	/**
+	 * Get retrieves the value of a key in a store.
+	 */
+	rpc Get(GetRequest) returns (GetResponse);
+	/**
+	 * Set sets the value of a key in a store.
+	 */
+	rpc Set(SetRequest) returns (SetResponse);
+	/**
+	 * Delete deletes a key from a store.
+	 */
+	rpc Delete(DeleteRequest) returns (DeleteResponse);
+}
+
+/**
+ * EnsureStoreRequest creates or updates a state store.
+ */
+message EnsureStoreRequest {
+	/**
+	 * The name of the store to create or update.
+	 */
+	string store = 1;
+}
+
+message EnsureStoreResponse {}
+
+/**
+ * GetRequest is the message sent to retrieve a value from a store.
+ */
+message GetRequest {
+	/**
+	 * Store to retrieve the value from.
+	 */
+	string store = 1;
+	/**
+	 * Key to retrieve the value for.
+	 */
+	string key = 2;
+}
+
+/**
+ * GetResponse is the message returned when retrieving a value from a store.
+ */
+message GetResponse {
+	/**
+	 * Timestamp of the last update to the key.
+	 */
+	optional google.protobuf.Timestamp last_updated = 1;
+	/**
+	 * The revision of the key.
+	 */
+	uint64 revision = 2;
+	/**
+	 * The value of the key.
+	 */
+	optional google.protobuf.Any value = 3;
+}
+
+message SetRequest {
+	/**
+	 * Store to set the value in.
+	 */
+	string store = 1;
+	/**
+	 * Key to set the value for.
+	 */
+	string key = 2;
+	/**
+	 * Value to set.
+	 */
+	google.protobuf.Any value = 3;
+
+	/**
+	 * If set the operation will only succeed if the key does not already
+	 * exist in the store.
+	 */
+	optional bool create_only = 4;
+	/**
+	 * If set the operation will only succeed if the current revision of the
+	 * key matches the given revision.
+	 */
+	optional uint64 last_revision = 5;
+}
+
+message SetResponse {
+	/**
+	 * The revision of the key.
+	 */
+	uint64 revision = 1;
+}
+
+message DeleteRequest {
+	/**
+	 * Store to delete the key from.
+	 */
+	string store = 1;
+	/**
+	 * Key to delete.
+	 */
+	string key = 2;
+
+	/**
+	 * If set the operation will only succeed if the current revision of the
+	 * key matches the given revision.
+	 */
+	optional uint64 last_revision = 3;
+}
+
+message DeleteResponse {}

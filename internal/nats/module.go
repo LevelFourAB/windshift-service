@@ -15,6 +15,7 @@ var Module = fx.Module(
 	fx.Provide(sprout.Config("NATS", &Config{}), fx.Private),
 	fx.Provide(newNats),
 	fx.Provide(newJetStream),
+	fx.Provide(newLegacyJetStream),
 )
 
 type Config struct {
@@ -47,4 +48,8 @@ func newNats(logger *zap.Logger, config *Config) (*nats.Conn, error) {
 
 func newJetStream(conn *nats.Conn, config *Config) (jetstream.JetStream, error) {
 	return jetstream.New(conn, jetstream.WithPublishAsyncMaxPending(config.PublishAsyncMaxPending))
+}
+
+func newLegacyJetStream(conn *nats.Conn) (nats.JetStreamContext, error) {
+	return conn.JetStream()
 }
