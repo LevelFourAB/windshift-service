@@ -3,6 +3,16 @@ issues:
     - path: (.+)_test.go
       linters:
         - dupl
+    - linters:
+        - revive
+        - stylecheck
+      text: dot imports
+      source: gomega
+    - linters:
+        - revive
+        - stylecheck
+      text: dot imports
+      source: ginkgo
 
 linters-settings:
   govet:
