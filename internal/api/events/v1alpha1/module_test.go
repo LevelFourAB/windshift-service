@@ -69,8 +69,7 @@ func newServer(
 	listener *bufconn.Listener,
 ) (*grpc.Server, error) {
 	server := grpc.NewServer(
-		grpc.StreamInterceptor(otelgrpc.StreamServerInterceptor()),
-		grpc.UnaryInterceptor(otelgrpc.UnaryServerInterceptor()),
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	)
 
 	lifecycle.Append(fx.Hook{

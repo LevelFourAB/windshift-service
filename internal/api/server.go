@@ -26,13 +26,12 @@ func newServer(
 		logging.WithLevels(loggingCodeToLevel),
 	}
 	server := grpc.NewServer(
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.ChainUnaryInterceptor(
-			otelgrpc.UnaryServerInterceptor(),
 			logging.UnaryServerInterceptor(gRPCLogger, loggingOptions...),
 			recovery.UnaryServerInterceptor(),
 		),
 		grpc.ChainStreamInterceptor(
-			otelgrpc.StreamServerInterceptor(),
 			logging.StreamServerInterceptor(gRPCLogger, loggingOptions...),
 			recovery.StreamServerInterceptor(),
 		),
