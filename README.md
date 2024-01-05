@@ -1,8 +1,11 @@
 # Windshift
 
 Windshift is an event-stream framework using NATS Jetstream. This repository
-contains the Windshift service, which is a gRPC server that provides an API for
-building distributed event-driven systems.
+contains the Windshift server, which provides a gRPC API for building
+distributed event-driven systems.
+
+Windshift provides a schema-first experience where data is represented by
+Protobuf messages, to allow your events to evolve over time.
 
 ## Features
 
@@ -14,10 +17,10 @@ building distributed event-driven systems.
   - 📤 Publish events to subjects, with idempotency and OpenTelemetry tracing
   - 📥 Durable consumers with distributed processing
   - 🕒 Ephemeral consumers for one off event processing
-  - 🔄 Automatic redelivery of failed events, events can be acknowledge or
+  - 🔄 Automatic redelivery of failed events, events can be acknowledged or
     rejected by consumers
   - 🔔 Ability to extend processing time by pinging events
-- 🔍 Observability via OpenTelemetry tracing
+- 🔍 Observability via OpenTelemetry tracing and metrics
 
 ### Planned features
 
@@ -27,10 +30,11 @@ building distributed event-driven systems.
 
 ## Environment variables
 
-| Name          | Description             | Required | Default |
-| ------------- | ----------------------- | -------- | ------- |
-| `DEVELOPMENT` | Enable development mode | No       | `false` |
-| `NATS_URL`    | URL of the NATS server  | Yes      |         |
+| Name                             | Description                                               | Required | Default |
+| -------------------------------- | --------------------------------------------------------- | -------- | ------- |
+| `DEVELOPMENT`                    | Enable development mode                                   | No       | `false` |
+| `NATS_URL`                       | URL of the NATS server                                    | Yes      |         |
+| `NATS_PUBLISH_ASYNC_MAX_PENDING` | Maximum number of pending messages when publishing events | No       | `256`   |
 
 ## Events
 
@@ -46,7 +50,7 @@ stream that also receives events from `orders.created`.
 The `windshift.events.v1alpha1.EventsService` is the main gRPC service for
 working with streams, subscriptions and events.
 
-### Streams
+### Defining streams
 
 Streams can be created with the `EnsureStream` method. This method will create
 a stream if it does not exist yet, or update the configuration of an existing
@@ -58,23 +62,6 @@ Example in pseudo-code:
 service.EnsureStream(windshift.events.v1alpha1.EnsureStreamRequest{
     name: "orders",
     subjects: [ "orders.*" ],
-})
-```
-
-### Consumers
-
-Consumers are used to process events from streams. Consumers can be durable or
-ephemeral. The `EnsureConsumer` method is used to create a consumer.
-This method will create a consumer if it does not exist yet, or update the
-configuration of an existing consumer.
-
-Example in pseudo-code:
-
-```typescript
-service.EnsureConsumer(windshift.events.v1alpha1.EnsureConsumerRequest{
-    stream: "orders",
-    name: "order-processor", // Provide a name to make it durable
-    subjects: [ "orders.created" ],
 })
 ```
 
@@ -101,6 +88,23 @@ Features:
 - Optimistic concurrency control can be used via `expected_last_id`. If the
   last event in the stream does not have the specified id, the event will not
   be published.
+
+### Defining consumers
+
+Consumers are used to process events from streams. Consumers can be durable or
+ephemeral. The `EnsureConsumer` method is used to create a consumer.
+This method will create a consumer if it does not exist yet, or update the
+configuration of an existing consumer.
+
+Example in pseudo-code:
+
+```typescript
+service.EnsureConsumer(windshift.events.v1alpha1.EnsureConsumerRequest{
+    stream: "orders",
+    name: "order-processor", // Provide a name to make it durable
+    subjects: [ "orders.created" ],
+})
+```
 
 ### Consuming events
 
