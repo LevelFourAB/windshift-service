@@ -32,7 +32,8 @@ module.exports = {
 			'always',
 			[
 				'proto',
-				'events'
+				'events',
+				'state'
 			]
 		]
 	}
