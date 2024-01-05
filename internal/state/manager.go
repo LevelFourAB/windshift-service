@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
@@ -20,7 +20,7 @@ type Manager struct {
 	logger *zap.Logger
 	tracer trace.Tracer
 
-	js nats.JetStreamContext
+	js jetstream.JetStream
 
 	stores *keyValueStoreCache
 }
@@ -43,7 +43,7 @@ type SetResult struct {
 func NewManager(
 	logger *zap.Logger,
 	tracer trace.Tracer,
-	js nats.JetStreamContext,
+	js jetstream.JetStream,
 ) (*Manager, error) {
 	manager := &Manager{
 		logger: logger,
@@ -51,9 +51,9 @@ func NewManager(
 
 		js: js,
 
-		stores: newKeyValueStoreCache(10*time.Minute, func(ctx context.Context, name string) (nats.KeyValue, error) {
-			res, err := js.KeyValue(name)
-			if errors.Is(err, nats.ErrBucketNotFound) {
+		stores: newKeyValueStoreCache(10*time.Minute, func(ctx context.Context, name string) (jetstream.KeyValue, error) {
+			res, err := js.KeyValue(ctx, name)
+			if errors.Is(err, jetstream.ErrBucketNotFound) {
 				return nil, errors.WithStack(ErrStoreNotFound)
 			} else if err != nil {
 				return nil, errors.WithStack(err)
@@ -90,7 +90,7 @@ func (m *Manager) EnsureStore(ctx context.Context, config *StoreConfig) error {
 
 	_, err := m.stores.Get(ctx, storeName)
 	if errors.Is(err, ErrStoreNotFound) {
-		_, err = m.js.CreateKeyValue(&nats.KeyValueConfig{
+		_, err = m.js.CreateKeyValue(ctx, jetstream.KeyValueConfig{
 			Bucket: config.Name,
 		})
 
@@ -144,9 +144,9 @@ func (m *Manager) Get(ctx context.Context, store string, key string) (*Entry, er
 		return nil, err
 	}
 
-	entry, err := bucket.Get(key)
+	entry, err := bucket.Get(ctx, key)
 	if err != nil {
-		if errors.Is(err, nats.ErrKeyNotFound) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			span.SetStatus(codes.Error, "failed to get key")
 			return nil, errors.WithStack(ErrKeyNotFound)
 		}
@@ -214,9 +214,9 @@ func (m *Manager) Create(ctx context.Context, store string, key string, value *a
 		return 0, errors.Wrap(err, "failed to marshal value")
 	}
 
-	r, err := bucket.Create(key, data)
+	r, err := bucket.Create(ctx, key, data)
 	if err != nil {
-		if errors.Is(err, nats.ErrKeyExists) {
+		if errors.Is(err, jetstream.ErrKeyExists) {
 			span.SetStatus(codes.Error, "key already exists, can not create")
 			return 0, errors.WithStack(ErrKeyAlreadyExists)
 		}
@@ -258,7 +258,7 @@ func (m *Manager) Set(ctx context.Context, store string, key string, value *anyp
 		return 0, errors.Wrap(err, "failed to marshal value")
 	}
 
-	r, err := bucket.Put(key, data)
+	r, err := bucket.Put(ctx, key, data)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to set value")
@@ -300,13 +300,13 @@ func (m *Manager) Update(ctx context.Context, store string, key string, value *a
 		return 0, errors.Wrap(err, "failed to marshal value")
 	}
 
-	var apiError *nats.APIError
-	r, err := bucket.Update(key, data, revision)
-	if errors.Is(err, nats.ErrKeyNotFound) {
+	var apiError *jetstream.APIError
+	r, err := bucket.Update(ctx, key, data, revision)
+	if errors.Is(err, jetstream.ErrKeyNotFound) {
 		span.SetStatus(codes.Error, "key not found, can not update")
 		return 0, errors.WithStack(ErrKeyNotFound)
 	} else if errors.As(err, &apiError) {
-		if apiError.ErrorCode == nats.JSErrCodeStreamWrongLastSequence {
+		if apiError.ErrorCode == jetstream.JSErrCodeStreamWrongLastSequence {
 			span.SetStatus(codes.Error, "revision mismatch, can not update")
 			return 0, errors.WithStack(ErrRevisionMismatch)
 		}
@@ -346,7 +346,7 @@ func (m *Manager) Delete(ctx context.Context, store string, key string) error {
 		return err
 	}
 
-	err = bucket.Delete(key)
+	err = bucket.Delete(ctx, key)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to delete key")
@@ -380,7 +380,7 @@ func (m *Manager) DeleteWithRevision(ctx context.Context, store string, key stri
 		return err
 	}
 
-	err = bucket.Delete(key, nats.LastRevision(revision))
+	err = bucket.Delete(ctx, key, jetstream.LastRevision(revision))
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to delete key")
