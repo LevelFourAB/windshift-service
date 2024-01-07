@@ -23,7 +23,7 @@ Protobuf messages, to allow your events to evolve over time.
 - 💾 State storage
   - 🗄 Supports multiple key-value stores for storing state
   - 📄 Values in Protobuf format, for strong typing and schema evolution
-  - 🔄 Optimistic concurrency control using compare and swap based on revisions
+  - ↔️ Optimistic concurrency control using compare and swap
 - 🔍 Observability via OpenTelemetry tracing and metrics
 
 ### Planned features
@@ -151,6 +151,102 @@ This will extend the timeout for the event.
 The server will respond with confirmations to `Ack`, `Reject` and `Ping`
 messages. These confirmations contain information about if the message was
 processed successfully, or if it failed.
+
+## Storing state
+
+Windshift provides the ability to define key-value stores for storing state.
+
+The `windshift.state.v1alpha1.EventsService` is the main gRPC service for
+working with state.
+
+### Defining stores
+
+Stores can be created with the `EnsureStore` method. This method will create
+a store if it does not exist yet.
+
+Example in pseudo-code:
+
+```typescript
+service.EnsureStore(windshift.state.v1alpha1.EnsureStoreRequest{
+  name: "orders",
+})
+```
+
+### Setting values
+
+Values can be set using the `Set` method, either normally, only if the key does
+not exist yet, or only if the key already exists in a specific revision.
+
+Example in pseudo-code:
+
+```typescript
+result = service.Set(windshift.state.v1alpha1.SetRequest{
+  store: "orders",
+  key: "order-123",
+  value: protobufMessage,
+})
+
+revision = result.revision
+```
+
+Setting only if the key does not exist yet:
+
+```typescript
+result = service.Set(windshift.state.v1alpha1.SetRequest{
+  store: "orders",
+  key: "order-123",
+  value: protobufMessage,
+  create_only: true,
+})
+```
+
+Updating a value with a specific revision:
+
+```typescript
+result = service.Set(windshift.state.v1alpha1.SetRequest{
+  store: "orders",
+  key: "order-123",
+  value: protobufMessage,
+  last_revision: revision,
+})
+```
+
+### Getting values
+
+Values can be retrieved using the `Get` method.
+
+Example in pseudo-code:
+
+```typescript
+result = service.Get(windshift.state.v1alpha1.GetRequest{
+  store: "orders",
+  key: "order-123",
+})
+```
+
+### Deleting values
+
+Values can be deleted using the `Delete` method, either normally or if the
+specified revision matches the current revision.
+
+Example in pseudo-code:
+
+```typescript
+service.Delete(windshift.state.v1alpha1.DeleteRequest{
+  store: "orders",
+  key: "order-123",
+})
+```
+
+Delete only if the revision matches:
+
+```typescript
+service.Delete(windshift.state.v1alpha1.DeleteRequest{
+  store: "orders",
+  key: "order-123",
+  last_revision: revision,
+})
+```
 
 ## Working with the code
 
