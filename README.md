@@ -23,22 +23,62 @@ Protobuf messages, to allow your events to evolve over time.
 - 💾 State storage
   - 🗄 Supports multiple key-value stores for storing state
   - 📄 Values in Protobuf format, for strong typing and schema evolution
-  - ↔️ Optimistic concurrency control using compare and swap
+  - 🔄 Optimistic concurrency control using compare and swap
 - 🔍 Observability via OpenTelemetry tracing and metrics
 
 ### Planned features
 
 - Logging and dead-letter queues for events that fail processing
-- Key-value store for state management
 - Authentication and authorization for API access
 
 ## Environment variables
 
-| Name                             | Description                                               | Required | Default |
-| -------------------------------- | --------------------------------------------------------- | -------- | ------- |
-| `DEVELOPMENT`                    | Enable development mode                                   | No       | `false` |
-| `NATS_URL`                       | URL of the NATS server                                    | Yes      |         |
-| `NATS_PUBLISH_ASYNC_MAX_PENDING` | Maximum number of pending messages when publishing events | No       | `256`   |
+| Name                                  | Description                                                                 | Required | Default                |
+| ------------------------------------- | --------------------------------------------------------------------------- | -------- | ---------------------- |
+| `DEVELOPMENT`                         | Enable development mode                                                     | No       | `false`                |
+| `NATS_URL`                            | URL of the NATS server                                                      | Yes      |                        |
+| `NATS_PUBLISH_ASYNC_MAX_PENDING`      | Maximum number of pending messages when publishing events                   | No       | `256`                  |
+| `GRPC_PORT`                           | Port to listen on for gRPC requests                                         | No       | `8080`                 |
+| `HEALTH_PORT`                         | Port to listen on for health checks                                         | No       | `8088`                 |
+| `OTEL_PROPAGATORS`                    | The default propagators to use                                              | No       | `tracecontext,baggage` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`         | The endpoint to send traces, metrics and logs to                            | No       |                        |
+| `OTEL_EXPORTER_OTLP_TIMEOUT`          | The timeout for sending data                                                | No       | `10s`                  |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`  | Custom endpoint to send traces to, overrides `OTEL_EXPORTER_OTLP_ENDPOINT`  | No       |                        |
+| `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`   | Custom timeout for sending traces                                           | No       | `10s`                  |
+| `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | Custom endpoint to send metrics to, overrides `OTEL_EXPORTER_OTLP_ENDPOINT` | No       |                        |
+| `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT`  | Custom timeout for sending metrics                                          | No       | `10s`                  |
+| `OTEL_TRACING_DEVELOPMENT`            | Enable development mode for tracing                                         | No       | `false`                |
+
+## Usage
+
+### Via Docker
+
+A Docker image is available on GitHub Container Registry:
+
+```console
+docker pull ghcr.io/levelfourab/windshift-server:latest
+```
+
+Run the server:
+
+```console
+docker run --rm -it -p 8080:8080 -e NATS_URL=nats://... ghcr.io/levelfourab/windshift-server:latest
+```
+
+### Via Kubernetes
+
+Windshift is stateless and can run in multiple replicas safely.
+
+### Health checks
+
+The server exposes a health check server on port `8088` by default. This
+server provides two endpoints:
+
+- `/healthz` - Returns `200 OK` if the server is healthy
+- `/readyz` - Returns `200 OK` if the server is ready to handle requests
+
+The port of the health server can be configured via the `HEALTH_PORT` environment
+variable.
 
 ## Events
 
