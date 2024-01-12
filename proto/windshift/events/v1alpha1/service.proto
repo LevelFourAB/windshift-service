@@ -25,6 +25,11 @@ service EventsService {
 	// Consume subscribes to events and returns them as they are published. The
 	// stream is bidirectional, so the client can acknowledge/reject events as
 	// they are received.
+	//
+	// The first message sent on the stream must be a Subscribe message, after
+	// which the server will respond with a Subscribed message. The client will
+	// then receive events as they are published, and should acknowledge, reject
+	// and ping as needed.
 	rpc Consume(stream ConsumeRequest) returns (stream ConsumeResponse) {}
 }
 
@@ -40,8 +45,8 @@ message EnsureStreamRequest {
 		// Maximum number of events per subject in the stream. Events beyond
 		// this limit will be deleted.
 		optional uint64 max_events_per_subject = 3;
-		// Maximum size of events in the stream. Events beyond this limit will
-		// be deleted.
+		// Maximum total byte size of all events in the stream. Events beyond
+		// this limit will be deleted.
 		optional uint64 max_bytes = 4;
 
 		// Policy to use when discarding events the stream is full. Defaults
@@ -67,14 +72,11 @@ message EnsureStreamRequest {
 		// contain the following characters:
 		//
 		// - `a` to `z`, `A` to `Z` and `0` to `9` are allowed.
-		//
 		// - `_` and `-` are allowed for separating words, but the use of
 		//   camelCase is recommended.
-		//
 		// - `.` is allowed and used as a hierarchy separator, such as
 		//   `time.us.east` and `time.eu.sweden`, which share the `time`
 		//   prefix.
-		//
 		// - `*` matches a single token, at any level of the subject. Such as
 		//   `time.*.east` will match `time.us.east` and `time.eu.east` but
 		//   not `time.us.west` or `time.us.central.east`. Similarly `time.us.*`
@@ -83,7 +85,6 @@ message EnsureStreamRequest {
 		//   The `*` wildcard can be used multiple times in a subject, such as
 		//   `time.*.*` will match `time.us.east` and `time.eu.west` but not
 		//   `time.us.east.atlanta`.
-		//
 		// - `>` matches one or more tokens at the tail of a subject, and can
 		//   only be used as the last token. Such as `time.us.>` will match
 		//   `time.us.east` and `time.us.east.atlanta` but not `time.eu.east`.
@@ -92,7 +93,8 @@ message EnsureStreamRequest {
 		repeated string subjects = 1;
 	}
 
-	// A stream that can be mirrored into the stream.
+	// Source describing mirroring/aggregation of events from another stream
+	// into this stream.
 	message StreamSource {
 		// Stream to receive events from. The stream must already exist.
 		string name = 1;
@@ -104,14 +106,11 @@ message EnsureStreamRequest {
 		// should only contain the following characters:
 		//
 		// - `a` to `z`, `A` to `Z` and `0` to `9` are allowed.
-		//
 		// - `_` and `-` are allowed for separating words, but the use of
 		//   camelCase is recommended.
-		//
 		// - `.` is allowed and used as a hierarchy separator, such as
 		//   `time.us.east` and `time.eu.sweden`, which share the `time`
 		//   prefix.
-		//
 		// - `*` matches a single token, at any level of the subject. Such as
 		//   `time.*.east` will match `time.us.east` and `time.eu.east` but
 		//   not `time.us.west` or `time.us.central.east`. Similarly `time.us.*`
@@ -120,7 +119,6 @@ message EnsureStreamRequest {
 		//   The `*` wildcard can be used multiple times in a subject, such as
 		//   `time.*.*` will match `time.us.east` and `time.eu.west` but not
 		//   `time.us.east.atlanta`.
-		//
 		// - `>` matches one or more tokens at the tail of a subject, and can
 		//   only be used as the last token. Such as `time.us.>` will match
 		//   `time.us.east` and `time.us.east.atlanta` but not `time.eu.east`.
@@ -147,9 +145,10 @@ message EnsureStreamRequest {
 
 	// Define how the stream should be stored.
 	message Storage {
-		// The type of storage to use for the stream.
+		// The type of storage to use for the stream. Defaults to file based
+		// storage.
 		optional StorageType type = 1;
-		// Number of replicas to use for the stream.
+		// Number of replicas to use for the stream. Defaults to 1.
 		optional uint32 replicas = 2;
 	}
 
@@ -159,11 +158,11 @@ message EnsureStreamRequest {
 	// characters:
 	//
 	// - `a` to `z`, `A` to `Z` and `0` to `9` are allowed.
-	//
 	// - `_` and `-` are allowed as non-alphanumeric characters for
 	//   separating words.
 	string name = 1;
-	// Retention policy for the stream.
+	// Retention policy for the stream. If no retention policy is set events
+	// will be retained forever.
 	optional RetentionPolicy retention_policy = 2;
 
 	// Source of events for the stream.
@@ -184,7 +183,7 @@ message EnsureStreamRequest {
 	optional google.protobuf.Duration deduplication_window = 7;
 
 	// The maximum size of an event in bytes. If not provided, will default to
-	// 1MB.
+	// 1MiB.
 	optional uint32 max_event_size = 8;
 }
 
@@ -204,7 +203,6 @@ message EnsureConsumerRequest {
 	// contain the following characters:
 	//
 	// - `a` to `z`, `A` to `Z` and `0` to `9` are allowed.
-	//
 	// - `_` and `-` are allowed for separating words, but the use of camelCase
 	//   is recommended.
 	optional string name = 2;
@@ -212,14 +210,11 @@ message EnsureConsumerRequest {
 	// contain the following characters:
 	//
 	// - `a` to `z`, `A` to `Z` and `0` to `9` are allowed.
-	//
 	// - `_` and `-` are allowed for separating words, but the use of camelCase
 	//   is recommended.
-	//
 	// - `.` is allowed and used as a hierarchy separator, such as
 	//   `time.us.east` and `time.eu.sweden`, which share the `time`
 	//   prefix.
-	//
 	// - `*` matches a single token, at any level of the subject. Such as
 	//   `time.*.east` will match `time.us.east` and `time.eu.east` but not
 	//   `time.us.west` or `time.us.central.east`. Similarly `time.us.*` will
@@ -228,7 +223,6 @@ message EnsureConsumerRequest {
 	//   The `*` wildcard can be used multiple times in a subject, such as
 	//   `time.*.*` will match `time.us.east` and `time.eu.west` but not
 	//   `time.us.east.atlanta`.
-	//
 	// - `>` matches one or more tokens at the tail of a subject, and can only
 	//   be used as the last token. Such as `time.us.>` will match
 	//   `time.us.east` and `time.us.east.atlanta` but not `time.eu.east`.
@@ -268,16 +262,21 @@ message PublishEventRequest {
 	// contain the following characters:
 	//
 	// - `a` to `z`, `A` to `Z` and `0` to `9` are allowed.
-	//
 	// - `_` and `-` are allowed for separating words, but the use of camelCase
 	//   is recommended.
-	//
 	// - `.` is allowed and used as a hierarchy separator, such as
 	//   `time.us.east` and `time.eu.sweden`, which share the `time` prefix.
 	//
+	// If the subject is not bound to a stream the event will be rejected.
+	//
 	// See NATS concepts: https://docs.nats.io/nats-concepts/subjects
 	string subject = 1;
-	// The event to publish.
+	// The event data. The data is dynamic and it is up to the publisher
+	// and subscriber to agree on the Protobuf messages to support.
+	//
+	// Each subject can support several different types of data, which can be
+	// useful to support different versions of the data. Subscribers should
+	// ignore data they do not understand.
 	google.protobuf.Any data = 2;
 	// Timestamp of the event, if not set, the server will use the current time.
 	optional google.protobuf.Timestamp timestamp = 3;
@@ -336,13 +335,20 @@ message ConsumeRequest {
 		// Permanently reject the events, if not provided the events will be
 		// retried after a timeout. If permanently is set to true, the events
 		// will not be redelivered.
+		//
+		// Can not be combined with delay.
 		optional bool permanently = 2;
 		// Optional time to wait before redelivering the events. If not
 		// provided the server will decide how long to wait.
+		//
+		// Can not be combined with permanently.
 		optional google.protobuf.Duration delay = 3;
 	}
 
-	// Ping events to indicate that they are still being processed.
+	// Ping events to indicate that they are still being processed. Pings should
+	// be sent regularly to indicate that the events are still being processed.
+	// It is recommended to send pings at half the interval of the processing
+	// timeout.
 	message Ping {
 		// The identifiers of the events that are currently being processed.
 		repeated uint64 ids = 1;
@@ -351,12 +357,21 @@ message ConsumeRequest {
 	oneof request {
 		// Subscribe to events, must be sent as the first message in the stream
 		// to establish what events to listen to.
+		//
+		// A ConsumeResponse.Subscribed message will be sent in response to
+		// this message. If the subscription fails, the stream will be closed.
 		Subscribe subscribe = 1;
-		// Acknowledge that some events have been successfully processed.
+		// Acknowledge that some events have been successfully processed. When
+		// an event is acknowledged a ConsumeResponse.AckConfirmation message
+		// will be sent in response.
 		Ack ack = 2;
-		// Acknowledge that some events have failed to be processed.
+		// Acknowledge that some events have failed to be processed. When an
+		// event is rejected a ConsumeResponse.RejectConfirmation message will
+		// be sent in response.
 		Reject reject = 3;
-		// Ping events to indicate that they are still being processed.
+		// Ping events to indicate that they are still being processed. When
+		// an event is pinged a ConsumeResponse.PingConfirmation message will
+		// be sent in response.
 		Ping ping = 4;
 	}
 }
@@ -421,7 +436,8 @@ message ConsumeResponse {
 	}
 }
 
-// A pointer to start receiving events from.
+// A pointer to a position in a stream. Used to determine where to start
+// consuming events from.
 message StreamPointer {
 	oneof pointer {
 		// Receive all events currently available.
@@ -435,7 +451,7 @@ message StreamPointer {
 	}
 }
 
-// An event that was published.
+// Event that was published and sent to a subscriber.
 message Event {
 	// Identifier of the event, used to acknowledge, reject or ping the event.
 	// Can also be used to resume processing of events if using an ephemeral
@@ -445,7 +461,12 @@ message Event {
 	string subject = 2;
 	// Headers of the event.
 	Headers headers = 3;
-	// Data of the event.
+	// Data of the event. The data is dynamic and it is up to the publisher
+	// and subscriber to agree on the Protobuf messages to support.
+	//
+	// Each subject can support several different types of data, which can be
+	// useful to support different versions of the data. Subscribers should
+	// ignore data they do not understand.
 	google.protobuf.Any data = 4;
 }
 
