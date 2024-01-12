@@ -7,6 +7,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.18.0"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
@@ -103,6 +104,11 @@ func (m *Manager) EnsureStream(ctx context.Context, config *StreamConfig) (*Stre
 		),
 	)
 	defer span.End()
+
+	if !IsValidStreamName(config.Name) {
+		span.SetStatus(codes.Error, "invalid stream name")
+		return nil, errors.Newf("invalid stream name: %s", config.Name)
+	}
 
 	natsDiscardPolicy := jetstream.DiscardOld
 	switch config.DiscardPolicy {

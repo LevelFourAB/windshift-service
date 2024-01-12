@@ -63,19 +63,69 @@ message EnsureStreamRequest {
 
 	// List of subjects that will be collected into the stream.
 	message Subjects {
-		// List of subjects.
+		// List of subjects. Subjects are case-sensitive and should only
+		// contain the following characters:
+		//
+		// - `a` to `z`, `A` to `Z` and `0` to `9` are allowed.
+		//
+		// - `_` and `-` are allowed for separating words, but the use of
+		//   camelCase is recommended.
+		//
+		// - `.` is allowed and used as a hierarchy separator, such as
+		//   `time.us.east` and `time.eu.sweden`, which share the `time`
+		//   prefix.
+		//
+		// - `*` matches a single token, at any level of the subject. Such as
+		//   `time.*.east` will match `time.us.east` and `time.eu.east` but
+		//   not `time.us.west` or `time.us.central.east`. Similarly `time.us.*`
+		//   will match `time.us.east` but not `time.us.east.atlanta`.
+		//
+		//   The `*` wildcard can be used multiple times in a subject, such as
+		//   `time.*.*` will match `time.us.east` and `time.eu.west` but not
+		//   `time.us.east.atlanta`.
+		//
+		// - `>` matches one or more tokens at the tail of a subject, and can
+		//   only be used as the last token. Such as `time.us.>` will match
+		//   `time.us.east` and `time.us.east.atlanta` but not `time.eu.east`.
+		//
+		// See NATS concepts: https://docs.nats.io/nats-concepts/subjects
 		repeated string subjects = 1;
 	}
 
 	// A stream that can be mirrored into the stream.
 	message StreamSource {
-		// Stream to receive events from.
+		// Stream to receive events from. The stream must already exist.
 		string name = 1;
 
 		// Optionally define where to start receiving events from.
 		optional StreamPointer pointer = 2;
 
-		// Optionally filter events by subject.
+		// Optionally filter events by subject. Subjects are case-sensitive and
+		// should only contain the following characters:
+		//
+		// - `a` to `z`, `A` to `Z` and `0` to `9` are allowed.
+		//
+		// - `_` and `-` are allowed for separating words, but the use of
+		//   camelCase is recommended.
+		//
+		// - `.` is allowed and used as a hierarchy separator, such as
+		//   `time.us.east` and `time.eu.sweden`, which share the `time`
+		//   prefix.
+		//
+		// - `*` matches a single token, at any level of the subject. Such as
+		//   `time.*.east` will match `time.us.east` and `time.eu.east` but
+		//   not `time.us.west` or `time.us.central.east`. Similarly `time.us.*`
+		//   will match `time.us.east` but not `time.us.east.atlanta`.
+		//
+		//   The `*` wildcard can be used multiple times in a subject, such as
+		//   `time.*.*` will match `time.us.east` and `time.eu.west` but not
+		//   `time.us.east.atlanta`.
+		//
+		// - `>` matches one or more tokens at the tail of a subject, and can
+		//   only be used as the last token. Such as `time.us.>` will match
+		//   `time.us.east` and `time.us.east.atlanta` but not `time.eu.east`.
+		//
+		// See NATS concepts: https://docs.nats.io/nats-concepts/subjects
 		repeated string filter_subjects = 3;
 	}
 
@@ -104,6 +154,14 @@ message EnsureStreamRequest {
 	}
 
 	// Name of the stream. Will be referenced by consumers and subscribers.
+	//
+	// Names are case-sensitive and should only contain the following
+	// characters:
+	//
+	// - `a` to `z`, `A` to `Z` and `0` to `9` are allowed.
+	//
+	// - `_` and `-` are allowed as non-alphanumeric characters for
+	//   separating words.
 	string name = 1;
 	// Retention policy for the stream.
 	optional RetentionPolicy retention_policy = 2;
@@ -133,16 +191,49 @@ message EnsureStreamRequest {
 message EnsureStreamResponse {}
 
 message EnsureConsumerRequest {
-	// The event stream to consume events from.
+	// The event stream to consume events from. The stream must already exist.
 	string stream = 1;
-	// The id of the consumer, should be unique to stream if provided,
-	// providing one creates a durable consumer activates support for
-	// resumption and shared processing of events.
+	// The name of the consumer, should be unique to stream if provided,
+	// providing one creates a durable consumer which supports resumption and
+	// shared processing of events.
 	//
 	// If not provided, the consumer will be ephemeral and will not be
 	// able to resume or share processing of events.
+	//
+	// When a name is specified it is case-sensitive and should only
+	// contain the following characters:
+	//
+	// - `a` to `z`, `A` to `Z` and `0` to `9` are allowed.
+	//
+	// - `_` and `-` are allowed for separating words, but the use of camelCase
+	//   is recommended.
 	optional string name = 2;
-	// The subjects to subscribe to.
+	// The subjects to subscribe to. Subjects are case-sensitive and should only
+	// contain the following characters:
+	//
+	// - `a` to `z`, `A` to `Z` and `0` to `9` are allowed.
+	//
+	// - `_` and `-` are allowed for separating words, but the use of camelCase
+	//   is recommended.
+	//
+	// - `.` is allowed and used as a hierarchy separator, such as
+	//   `time.us.east` and `time.eu.sweden`, which share the `time`
+	//   prefix.
+	//
+	// - `*` matches a single token, at any level of the subject. Such as
+	//   `time.*.east` will match `time.us.east` and `time.eu.east` but not
+	//   `time.us.west` or `time.us.central.east`. Similarly `time.us.*` will
+	//   match `time.us.east` but not `time.us.east.atlanta`.
+	//
+	//   The `*` wildcard can be used multiple times in a subject, such as
+	//   `time.*.*` will match `time.us.east` and `time.eu.west` but not
+	//   `time.us.east.atlanta`.
+	//
+	// - `>` matches one or more tokens at the tail of a subject, and can only
+	//   be used as the last token. Such as `time.us.>` will match
+	//   `time.us.east` and `time.us.east.atlanta` but not `time.eu.east`.
+	//
+	// See NATS concepts: https://docs.nats.io/nats-concepts/subjects
 	repeated string subjects = 3;
 	// The pointer to start receiving events from. Used to control how this
 	// subscriber will receive old events. If not specified only new events
@@ -173,7 +264,18 @@ message DeleteConsumerResponse {}
 
 // Request to publish an event.
 message PublishEventRequest {
-	// The subject of the event.
+	// The subject of the event. Subjects are case-sensitive and should only
+	// contain the following characters:
+	//
+	// - `a` to `z`, `A` to `Z` and `0` to `9` are allowed.
+	//
+	// - `_` and `-` are allowed for separating words, but the use of camelCase
+	//   is recommended.
+	//
+	// - `.` is allowed and used as a hierarchy separator, such as
+	//   `time.us.east` and `time.eu.sweden`, which share the `time` prefix.
+	//
+	// See NATS concepts: https://docs.nats.io/nats-concepts/subjects
 	string subject = 1;
 	// The event to publish.
 	google.protobuf.Any data = 2;
@@ -205,9 +307,10 @@ message PublishEventResponse {
 message ConsumeRequest {
 	// Subscribe to events, must be sent as the first message in the stream.
 	message Subscribe {
-		// The id of the stream to subscribe to.
+		// The name of the stream to subscribe to. The stream must already
+		// exist.
 		string stream = 1;
-		// The id of the consumer, should be an id previously created using
+		// The name of the consumer, should be an name previously created using
 		// EnsureConsumer.
 		string consumer = 2;
 		// The maximum number of events to process at once. If not provided
