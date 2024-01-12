@@ -49,6 +49,11 @@ func (m *Manager) Publish(ctx context.Context, config *PublishConfig) (*Publishe
 	)
 	defer span.End()
 
+	if !IsValidSubject(config.Subject, false) {
+		span.SetStatus(codes.Error, "invalid subject")
+		return nil, errors.Newf("invalid subject: %s", config.Subject)
+	}
+
 	// Create the message
 	msg := &nats.Msg{
 		Subject: config.Subject,

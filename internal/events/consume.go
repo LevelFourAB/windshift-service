@@ -84,12 +84,12 @@ func (m *Manager) Consume(ctx context.Context, config *EventConsumeConfig) (*Eve
 	ctx, span := m.tracer.Start(ctx, config.Stream+" subscribe")
 	defer span.End()
 
-	if config.Stream == "" {
-		return nil, errors.New("name of stream must be specified")
+	if !IsValidStreamName(config.Stream) {
+		return nil, errors.Newf("invalid stream name: %s", config.Stream)
 	}
 
-	if config.Name == "" {
-		return nil, errors.New("name of subscription must be specified")
+	if !IsValidConsumerName(config.Name) {
+		return nil, errors.Newf("invalid consumer name: %s", config.Name)
 	}
 
 	if config.MaxPendingEvents == 0 {

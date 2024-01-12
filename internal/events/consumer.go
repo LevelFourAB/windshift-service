@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.18.0"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
@@ -75,12 +76,21 @@ func (m *Manager) EnsureConsumer(ctx context.Context, config *ConsumerConfig) (*
 	)
 	defer span.End()
 
-	if config.Stream == "" {
-		return nil, errors.New("stream must be specified")
+	if !IsValidStreamName(config.Stream) {
+		span.SetStatus(codes.Error, "invalid stream")
+		return nil, errors.Newf("invalid stream name: %s", config.Stream)
 	}
 
 	if len(config.Subjects) == 0 {
+		span.SetStatus(codes.Error, "no subjects specified")
 		return nil, errors.New("one or more subjects must be specified")
+	}
+
+	for _, s := range config.Subjects {
+		if !IsValidSubject(s, true) {
+			span.SetStatus(codes.Error, "invalid subject")
+			return nil, errors.Newf("invalid subject: %s", s)
+		}
 	}
 
 	var name string
@@ -98,6 +108,11 @@ func (m *Manager) EnsureConsumer(ctx context.Context, config *ConsumerConfig) (*
 		span.SetAttributes(attribute.String("name", name))
 	} else {
 		// If the name is specified, we create a durable consumer
+		if !IsValidConsumerName(config.Name) {
+			span.SetStatus(codes.Error, "invalid consumer name")
+			return nil, errors.Newf("invalid consumer name: %s", config.Name)
+		}
+
 		span.SetAttributes(
 			attribute.String("type", "durable"),
 			attribute.String("name", config.Name),
