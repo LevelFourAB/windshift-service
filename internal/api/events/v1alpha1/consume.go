@@ -33,7 +33,7 @@ func (e *EventsServiceServer) Consume(server eventsv1alpha1.EventsService_Consum
 			return errors.Wrap(err2, "could not subscribe")
 		}
 	} else {
-		return errors.New("first message must be a subscribe")
+		return status.Error(codes.InvalidArgument, "first message must be a subscribe")
 	}
 	defer events.Close()
 

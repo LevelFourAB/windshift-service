@@ -5,6 +5,9 @@ import (
 	"errors"
 	"windshift/service/internal/events"
 	eventsv1alpha1 "windshift/service/internal/proto/windshift/events/v1alpha1"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (e *EventsServiceServer) EnsureStream(ctx context.Context, req *eventsv1alpha1.EnsureStreamRequest) (*eventsv1alpha1.EnsureStreamResponse, error) {
@@ -89,7 +92,13 @@ func (e *EventsServiceServer) EnsureStream(ctx context.Context, req *eventsv1alp
 	}
 
 	_, err := e.events.EnsureStream(ctx, config)
-	if err != nil {
+	if errors.Is(err, context.Canceled) {
+		return nil, status.Error(codes.Canceled, "context canceled")
+	} else if errors.Is(err, context.DeadlineExceeded) {
+		return nil, status.Error(codes.DeadlineExceeded, "timed out")
+	} else if events.IsValidationError(err) {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	} else if err != nil {
 		return nil, err
 	}
 

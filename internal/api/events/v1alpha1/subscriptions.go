@@ -4,6 +4,10 @@ import (
 	"context"
 	"windshift/service/internal/events"
 	eventsv1alpha1 "windshift/service/internal/proto/windshift/events/v1alpha1"
+
+	"github.com/cockroachdb/errors"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (e *EventsServiceServer) EnsureConsumer(ctx context.Context, req *eventsv1alpha1.EnsureConsumerRequest) (*eventsv1alpha1.EnsureConsumerResponse, error) {
@@ -25,7 +29,13 @@ func (e *EventsServiceServer) EnsureConsumer(ctx context.Context, req *eventsv1a
 	}
 
 	consumer, err := e.events.EnsureConsumer(ctx, config)
-	if err != nil {
+	if errors.Is(err, context.Canceled) {
+		return nil, status.Error(codes.Canceled, "context canceled")
+	} else if errors.Is(err, context.DeadlineExceeded) {
+		return nil, status.Error(codes.DeadlineExceeded, "timed out")
+	} else if events.IsValidationError(err) {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	} else if err != nil {
 		return nil, err
 	}
 

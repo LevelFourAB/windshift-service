@@ -107,7 +107,7 @@ func (m *Manager) EnsureStream(ctx context.Context, config *StreamConfig) (*Stre
 
 	if !IsValidStreamName(config.Name) {
 		span.SetStatus(codes.Error, "invalid stream name")
-		return nil, errors.Newf("invalid stream name: %s", config.Name)
+		return nil, newValidationError("invalid stream name: " + config.Name)
 	}
 
 	natsDiscardPolicy := jetstream.DiscardOld
