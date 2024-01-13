@@ -176,7 +176,7 @@ func (m *Manager) EnsureStream(ctx context.Context, config *StreamConfig) (*Stre
 	if config.DeduplicationWindow != nil {
 		streamConfig.Duplicates = *config.DeduplicationWindow
 	} else {
-		streamConfig.Duplicates = 1 * time.Minute
+		streamConfig.Duplicates = 2 * time.Minute
 	}
 
 	if config.MaxEventSize != nil && *config.MaxEventSize > 0 {
