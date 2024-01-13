@@ -38,22 +38,35 @@ message EnsureStreamRequest {
 	message RetentionPolicy {
 		// Maximum age of events in the stream. Events older than this will be
 		// deleted.
+		//
+		// No default, if not provided events will not be deleted based on age.
 		optional google.protobuf.Duration max_age = 1;
 		// Maximum number of events in the stream. Events beyond this limit will
 		// be deleted.
+		//
+		// No default, if not provided events will not be deleted based on
+		// count.
 		optional uint64 max_events = 2;
 		// Maximum number of events per subject in the stream. Events beyond
 		// this limit will be deleted.
+		//
+		// No default, if not provided events will not be deleted based on
+		// count.
 		optional uint64 max_events_per_subject = 3;
 		// Maximum total byte size of all events in the stream. Events beyond
 		// this limit will be deleted.
+		//
+		// No default, if not provided events will not be deleted based on size.
 		optional uint64 max_bytes = 4;
 
-		// Policy to use when discarding events the stream is full. Defaults
-		// to discarding old events.
+		// Policy to use when discarding events the stream is full.
+		//
+		// Defaults to discarding old events if not provided.
 		optional DiscardPolicy discard_policy = 5;
 		// If discard policy is set to discard new events, settings this to
 		// true will discard new events per subject instead of globally.
+		//
+		// Defaults to false if not provided.
 		optional bool discard_new_per_subject = 6;
 	}
 
@@ -100,6 +113,8 @@ message EnsureStreamRequest {
 		string name = 1;
 
 		// Optionally define where to start receiving events from.
+		//
+		// Defaults to the start of stream if not provided.
 		optional StreamPointer pointer = 2;
 
 		// Optionally filter events by subject. Subjects are case-sensitive and
@@ -145,10 +160,13 @@ message EnsureStreamRequest {
 
 	// Define how the stream should be stored.
 	message Storage {
-		// The type of storage to use for the stream. Defaults to file based
-		// storage.
+		// The type of storage to use for the stream.
+		//
+		// Defaults to file based storage if not provided.
 		optional StorageType type = 1;
-		// Number of replicas to use for the stream. Defaults to 1.
+		// Number of replicas to use for the stream.
+		//
+		// Defaults to 1 if not provided.
 		optional uint32 replicas = 2;
 	}
 
@@ -161,8 +179,9 @@ message EnsureStreamRequest {
 	// - `_` and `-` are allowed as non-alphanumeric characters for
 	//   separating words.
 	string name = 1;
-	// Retention policy for the stream. If no retention policy is set events
-	// will be retained forever.
+	// Retention policy for the stream.
+	//
+	// Defaults to retaining events forever if not provided.
 	optional RetentionPolicy retention_policy = 2;
 
 	// Source of events for the stream.
@@ -179,12 +198,14 @@ message EnsureStreamRequest {
 	optional Storage storage = 6;
 
 	// The amount of time duplicate detection should be enabled for. This is
-	// how long an idempotency key will be stored and checked for. Defaults to
-	// 2 minutes.
+	// how long an idempotency key will be stored and checked for.
+	//
+	// Defaults to 2 minutes if not provided.
 	optional google.protobuf.Duration deduplication_window = 7;
 
-	// The maximum size of an event in bytes. If not provided, will default to
-	// 1MiB.
+	// The maximum size of an event in bytes.
+	//
+	// Defaults to 1 MiB if not provided.
 	optional uint32 max_event_size = 8;
 }
 
@@ -197,8 +218,8 @@ message EnsureConsumerRequest {
 	// providing one creates a durable consumer which supports resumption and
 	// shared processing of events.
 	//
-	// If not provided, the consumer will be ephemeral and will not be
-	// able to resume or share processing of events.
+	// If not provided the consumer will be ephemeral and will not be able to
+	// resume or share processing of events.
 	//
 	// When a name is specified it is case-sensitive and should only
 	// contain the following characters:
@@ -231,15 +252,17 @@ message EnsureConsumerRequest {
 	// See NATS concepts: https://docs.nats.io/nats-concepts/subjects
 	repeated string subjects = 3;
 	// The pointer to start receiving events from. Used to control how this
-	// subscriber will receive old events. If not specified only new events
-	// will be received.
+	// subscriber will receive old events.
+	//
+	// Defaults to new events if not provided.
 	optional StreamPointer pointer = 4;
-	// The timeout for events, after which they will be resent. If not
-	// provided a 30 second timeout will be used.
+	// The timeout for events, after which they will be resent.
 	//
 	// Events will need to be acknowledged, rejected or pinged before the
 	// timeout expires, otherwise they will be marked as failed and queued
 	// for delivery again.
+	//
+	// Defaults to 30 seconds if not provided.
 	optional google.protobuf.Duration processing_timeout = 5;
 }
 
@@ -279,15 +302,23 @@ message PublishEventRequest {
 	// useful to support different versions of the data. Subscribers should
 	// ignore data they do not understand.
 	google.protobuf.Any data = 2;
-	// Timestamp of the event, if not set, the server will use the current time.
+	// Timestamp of the event.
+	//
+	// Defaults to the current time of the server if not provided.
 	optional google.protobuf.Timestamp timestamp = 3;
 	// Key used to prevent duplicate events from being stored if a retry is
 	// needed. Should be set to a unique value for each publish request of a
 	// specific event.
+	//
+	// No default, events will not be deduplicated if not provided.
 	optional string idempotency_key = 4;
-	// The id of the last event that was published to the stream. Used for
-	// optimistic concurrency control, if the last event id does not match
-	// the current last event id, the publish will fail.
+	// The id of the event that is expected to be in the last published event in
+	// the stream.
+	//
+	// Used for optimistic concurrency control, if the specified event id does
+	// not match the current last event id, the publish will fail.
+	//
+	// No default, publish will not check the last event if not provided.
 	optional uint64 expected_last_id = 5;
 }
 
@@ -301,7 +332,7 @@ message PublishEventResponse {
 // The first message sent on the stream must be a Subscribe message, after
 // which the client can send Ack, Reject or Ping messages.
 //
-// Events should be either acknowledge or rejected, otherwise they will be
+// Events should be either acknowledged or rejected, otherwise they will be
 // resent after a timeout. If processing takes of an event takes a while pings
 // should be sent to indicate that the event is still being processed.
 message ConsumeRequest {
@@ -313,13 +344,14 @@ message ConsumeRequest {
 		// The name of the consumer, should be an name previously created using
 		// EnsureConsumer.
 		string consumer = 2;
-		// The maximum number of events to process at once. If not provided
-		// a limit of 50 will be used.
+		// The maximum number of events to process at once.
 		//
 		// In most cases this should be set to approximately the number of
 		// events that can be processed in parallel plus a small buffer. The
 		// server will ramp up events to this limit, and will only send more
 		// events once the client has acknowledged or rejected events.
+		//
+		// Defaults to 50 if not provided.
 		optional uint64 max_processing_events = 4;
 	}
 
@@ -476,8 +508,7 @@ message Headers {
 	// may set this when publishing.
 	google.protobuf.Timestamp timestamp = 1;
 	// Key used to prevent duplicate events from being stored if a retry is
-	// needed. Should be set to a unique value for each publish request of a
-	// specific event.
+	// needed.
 	optional string idempotency_key = 2;
 	// Parent trace id in the W3C trace context format.
 	optional string trace_parent = 3;
