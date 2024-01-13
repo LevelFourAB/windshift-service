@@ -85,11 +85,11 @@ func (m *Manager) Consume(ctx context.Context, config *EventConsumeConfig) (*Eve
 	defer span.End()
 
 	if !IsValidStreamName(config.Stream) {
-		return nil, errors.Newf("invalid stream name: %s", config.Stream)
+		return nil, newValidationError("invalid stream name: " + config.Stream)
 	}
 
 	if !IsValidConsumerName(config.Name) {
-		return nil, errors.Newf("invalid consumer name: %s", config.Name)
+		return nil, newValidationError("invalid consumer name: " + config.Name)
 	}
 
 	if config.MaxPendingEvents == 0 {

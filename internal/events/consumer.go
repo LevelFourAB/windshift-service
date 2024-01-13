@@ -72,24 +72,25 @@ func (m *Manager) EnsureConsumer(ctx context.Context, config *ConsumerConfig) (*
 		trace.WithAttributes(
 			semconv.MessagingSystem("nats"),
 			attribute.String("stream", config.Stream),
+			attribute.String("name", config.Name),
 		),
 	)
 	defer span.End()
 
 	if !IsValidStreamName(config.Stream) {
 		span.SetStatus(codes.Error, "invalid stream")
-		return nil, errors.Newf("invalid stream name: %s", config.Stream)
+		return nil, newValidationError("invalid stream: " + config.Stream)
 	}
 
 	if len(config.Subjects) == 0 {
 		span.SetStatus(codes.Error, "no subjects specified")
-		return nil, errors.New("one or more subjects must be specified")
+		return nil, newValidationError("one or more subjects must be specified")
 	}
 
 	for _, s := range config.Subjects {
 		if !IsValidSubject(s, true) {
 			span.SetStatus(codes.Error, "invalid subject")
-			return nil, errors.Newf("invalid subject: %s", s)
+			return nil, newValidationError("invalid subject: " + s)
 		}
 	}
 
@@ -110,7 +111,7 @@ func (m *Manager) EnsureConsumer(ctx context.Context, config *ConsumerConfig) (*
 		// If the name is specified, we create a durable consumer
 		if !IsValidConsumerName(config.Name) {
 			span.SetStatus(codes.Error, "invalid consumer name")
-			return nil, errors.Newf("invalid consumer name: %s", config.Name)
+			return nil, newValidationError("invalid consumer name: " + config.Name)
 		}
 
 		span.SetAttributes(

@@ -51,12 +51,12 @@ func (m *Manager) Publish(ctx context.Context, config *PublishConfig) (*Publishe
 
 	if !IsValidSubject(config.Subject, false) {
 		span.SetStatus(codes.Error, "invalid subject")
-		return nil, ErrInvalidSubject
+		return nil, newValidationError("invalid subject: " + config.Subject)
 	}
 
 	if config.Data == nil {
 		span.SetStatus(codes.Error, "no data specified")
-		return nil, ErrInvalidData
+		return nil, newValidationError("no data specified")
 	}
 
 	// Create the message

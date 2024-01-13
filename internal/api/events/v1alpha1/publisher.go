@@ -38,13 +38,12 @@ func (e *EventsServiceServer) PublishEvent(ctx context.Context, req *eventsv1alp
 		return nil, status.Error(codes.Canceled, "context canceled")
 	} else if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, events.ErrPublishTimeout) {
 		return nil, status.Error(codes.DeadlineExceeded, "publish timed out")
-	} else if errors.Is(err, events.ErrInvalidSubject) {
-		return nil, status.Error(codes.InvalidArgument, "invalid subject")
-	} else if errors.Is(err, events.ErrInvalidData) {
-		return nil, status.Error(codes.InvalidArgument, "invalid data")
+	} else if events.IsValidationError(err) {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	} else if err != nil {
 		return nil, err
 	}
+
 	return &eventsv1alpha1.PublishEventResponse{
 		Id: ack.ID,
 	}, nil
