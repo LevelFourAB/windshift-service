@@ -179,7 +179,8 @@ message EnsureStreamRequest {
 	optional Storage storage = 6;
 
 	// The amount of time duplicate detection should be enabled for. This is
-	// how long an idempotency key will be stored and checked for.
+	// how long an idempotency key will be stored and checked for. Defaults to
+	// 2 minutes.
 	optional google.protobuf.Duration deduplication_window = 7;
 
 	// The maximum size of an event in bytes. If not provided, will default to
