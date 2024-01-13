@@ -95,6 +95,14 @@ var _ = Describe("Publish", func() {
 		Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(2)))
 	})
 
+	It("publishing to unbound subject fails", func(ctx context.Context) {
+		_, err := manager.Publish(ctx, &events.PublishConfig{
+			Subject: "test",
+			Data:    Data(&emptypb.Empty{}),
+		})
+		Expect(err).To(MatchError(events.ErrUnboundSubject))
+	})
+
 	It("setting published time works", func(ctx context.Context) {
 		publishedTime := time.Now().Add(-time.Hour)
 		e, err := manager.Publish(ctx, &events.PublishConfig{
@@ -202,7 +210,7 @@ var _ = Describe("Publish", func() {
 			Data:               Data(&emptypb.Empty{}),
 			ExpectedSubjectSeq: &seq,
 		})
-		Expect(err).To(HaveOccurred())
+		Expect(err).To(MatchError(events.ErrWrongSequence))
 
 		// Verify that we have the correct number of messages in the stream
 		stream, err := js.Stream(ctx, "events")
@@ -246,7 +254,7 @@ var _ = Describe("Publish", func() {
 			Data:               Data(&emptypb.Empty{}),
 			ExpectedSubjectSeq: &seq,
 		})
-		Expect(err).To(HaveOccurred())
+		Expect(err).To(MatchError(events.ErrWrongSequence))
 
 		// Verify that we have the correct number of messages in the stream
 		stream, err := js.Stream(ctx, "events")
