@@ -38,7 +38,7 @@ service EventsService {
 	rpc Consume(stream ConsumeRequest) returns (stream ConsumeResponse) {}
 }
 
-/**
+/*
  * Request that creates or updates a stream. Commonly called at the start of
  * a program to ensure that the stream exists, or in a declarative way by the
  * admin to ensure that the stream is configured correctly.
@@ -219,12 +219,12 @@ message EnsureStreamRequest {
 	optional uint32 max_event_size = 8;
 }
 
-/**
+/*
  * Response to creating or updating a stream.
  */
 message EnsureStreamResponse {}
 
-/**
+/*
  * Request to create or update a consumer. Consumers are managed by the programs
  * that use them, and this event is commonly sent at the start of a program to
  * ensure that the consumer exists.
@@ -284,7 +284,7 @@ message EnsureConsumerRequest {
 	optional google.protobuf.Duration processing_timeout = 5;
 }
 
-/**
+/*
  * Response to creating or updating a consumer.
  */
 message EnsureConsumerResponse {
@@ -292,7 +292,7 @@ message EnsureConsumerResponse {
 	string id = 1;
 }
 
-/**
+/*
  * Request to delete a consumer.
  */
 message DeleteConsumerRequest {
@@ -303,7 +303,7 @@ message DeleteConsumerRequest {
 	string id = 2;
 }
 
-/**
+/*
  * Response to deleting a consumer.
  */
 message DeleteConsumerResponse {}
