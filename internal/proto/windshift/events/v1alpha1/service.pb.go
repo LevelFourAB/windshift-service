@@ -128,14 +128,26 @@ func (EnsureStreamRequest_StorageType) EnumDescriptor() ([]byte, []int) {
 	return file_windshift_events_v1alpha1_service_proto_rawDescGZIP(), []int{0, 1}
 }
 
+// Request that creates or updates a stream. Commonly called at the start of
+// a program to ensure that the stream exists, or in a declarative way by the
+// admin to ensure that the stream is configured correctly.
 type EnsureStreamRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
 	// Name of the stream. Will be referenced by consumers and subscribers.
+	//
+	// Names are case-sensitive and should only contain the following
+	// characters:
+	//
+	//   - `a` to `z`, `A` to `Z` and `0` to `9` are allowed.
+	//   - `_` and `-` are allowed as non-alphanumeric characters for
+	//     separating words.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Retention policy for the stream.
+	//
+	// Defaults to retaining events forever if not provided.
 	RetentionPolicy *EnsureStreamRequest_RetentionPolicy `protobuf:"bytes,2,opt,name=retention_policy,json=retentionPolicy,proto3,oneof" json:"retention_policy,omitempty"`
 	// Source of events for the stream.
 	//
@@ -149,9 +161,12 @@ type EnsureStreamRequest struct {
 	Storage *EnsureStreamRequest_Storage `protobuf:"bytes,6,opt,name=storage,proto3,oneof" json:"storage,omitempty"`
 	// The amount of time duplicate detection should be enabled for. This is
 	// how long an idempotency key will be stored and checked for.
+	//
+	// Defaults to 2 minutes if not provided.
 	DeduplicationWindow *durationpb.Duration `protobuf:"bytes,7,opt,name=deduplication_window,json=deduplicationWindow,proto3,oneof" json:"deduplication_window,omitempty"`
-	// The maximum size of an event in bytes. If not provided, will default to
-	// 1MB.
+	// The maximum size of an event in bytes.
+	//
+	// Defaults to 1 MiB if not provided.
 	MaxEventSize *uint32 `protobuf:"varint,8,opt,name=max_event_size,json=maxEventSize,proto3,oneof" json:"max_event_size,omitempty"`
 }
 
@@ -275,6 +290,7 @@ func (*EnsureStreamRequest_Mirror) isEnsureStreamRequest_Source() {}
 
 func (*EnsureStreamRequest_Aggregate) isEnsureStreamRequest_Source() {}
 
+// Response to creating or updating a stream.
 type EnsureStreamResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -313,32 +329,68 @@ func (*EnsureStreamResponse) Descriptor() ([]byte, []int) {
 	return file_windshift_events_v1alpha1_service_proto_rawDescGZIP(), []int{1}
 }
 
+// Request to create or update a consumer. Consumers are managed by the programs
+// that use them, and this event is commonly sent at the start of a program to
+// ensure that the consumer exists.
 type EnsureConsumerRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// The event stream to consume events from.
+	// The event stream to consume events from. The stream must already exist.
 	Stream string `protobuf:"bytes,1,opt,name=stream,proto3" json:"stream,omitempty"`
-	// The id of the consumer, should be unique to stream if provided,
-	// providing one creates a durable consumer activates support for
-	// resumption and shared processing of events.
+	// The name of the consumer, should be unique to stream if provided,
+	// providing one creates a durable consumer which supports resumption and
+	// shared processing of events.
 	//
-	// If not provided, the consumer will be ephemeral and will not be
-	// able to resume or share processing of events.
+	// If not provided the consumer will be ephemeral and will not be able to
+	// resume or share processing of events.
+	//
+	// When a name is specified it is case-sensitive and should only
+	// contain the following characters:
+	//
+	//   - `a` to `z`, `A` to `Z` and `0` to `9` are allowed.
+	//   - `_` and `-` are allowed for separating words, but the use of camelCase
+	//     is recommended.
 	Name *string `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	// The subjects to subscribe to.
+	// The subjects to subscribe to. Subjects are case-sensitive and should only
+	// contain the following characters:
+	//
+	//   - `a` to `z`, `A` to `Z` and `0` to `9` are allowed.
+	//
+	//   - `_` and `-` are allowed for separating words, but the use of camelCase
+	//     is recommended.
+	//
+	//   - `.` is allowed and used as a hierarchy separator, such as
+	//     `time.us.east` and `time.eu.sweden`, which share the `time`
+	//     prefix.
+	//
+	//   - `*` matches a single token, at any level of the subject. Such as
+	//     `time.*.east` will match `time.us.east` and `time.eu.east` but not
+	//     `time.us.west` or `time.us.central.east`. Similarly `time.us.*` will
+	//     match `time.us.east` but not `time.us.east.atlanta`.
+	//
+	//     The `*` wildcard can be used multiple times in a subject, such as
+	//     `time.*.*` will match `time.us.east` and `time.eu.west` but not
+	//     `time.us.east.atlanta`.
+	//   - `>` matches one or more tokens at the tail of a subject, and can only
+	//     be used as the last token. Such as `time.us.>` will match
+	//     `time.us.east` and `time.us.east.atlanta` but not `time.eu.east`.
+	//
+	// See NATS concepts: https://docs.nats.io/nats-concepts/subjects
 	Subjects []string `protobuf:"bytes,3,rep,name=subjects,proto3" json:"subjects,omitempty"`
 	// The pointer to start receiving events from. Used to control how this
-	// subscriber will receive old events. If not specified only new events
-	// will be received.
+	// subscriber will receive old events.
+	//
+	// Defaults to new events if not provided.
 	Pointer *StreamPointer `protobuf:"bytes,4,opt,name=pointer,proto3,oneof" json:"pointer,omitempty"`
-	// The timeout for events, after which they will be resent. If not
-	// provided a 30 second timeout will be used.
+	// The timeout for events, after which they will be resent.
 	//
 	// Events will need to be acknowledged, rejected or pinged before the
 	// timeout expires, otherwise they will be marked as failed and queued
 	// for delivery again.
+	//
+	// Defaults to 30 seconds if not provided.
 	ProcessingTimeout *durationpb.Duration `protobuf:"bytes,5,opt,name=processing_timeout,json=processingTimeout,proto3,oneof" json:"processing_timeout,omitempty"`
 }
 
@@ -409,12 +461,13 @@ func (x *EnsureConsumerRequest) GetProcessingTimeout() *durationpb.Duration {
 	return nil
 }
 
+// Response to creating or updating a consumer.
 type EnsureConsumerResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// The id of the subscription.
+	// The id of the consumer.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 }
 
@@ -457,14 +510,16 @@ func (x *EnsureConsumerResponse) GetId() string {
 	return ""
 }
 
+// Request to delete a consumer.
 type DeleteConsumerRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// The event stream to delete the consumer from.
+	// The event stream to delete the consumer from. The stream must already
+	// exist.
 	Stream string `protobuf:"bytes,1,opt,name=stream,proto3" json:"stream,omitempty"`
-	// The id of the consumer to delete.
+	// The id of the consumer to delete. The consumer must already exist.
 	Id string `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
 }
 
@@ -514,6 +569,7 @@ func (x *DeleteConsumerRequest) GetId() string {
 	return ""
 }
 
+// Response to deleting a consumer.
 type DeleteConsumerResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -558,19 +614,43 @@ type PublishEventRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// The subject of the event.
+	// The subject of the event. Subjects are case-sensitive and should only
+	// contain the following characters:
+	//
+	//   - `a` to `z`, `A` to `Z` and `0` to `9` are allowed.
+	//   - `_` and `-` are allowed for separating words, but the use of camelCase
+	//     is recommended.
+	//   - `.` is allowed and used as a hierarchy separator, such as
+	//     `time.us.east` and `time.eu.sweden`, which share the `time` prefix.
+	//
+	// If the subject is not bound to a stream the event will be rejected.
+	//
+	// See NATS concepts: https://docs.nats.io/nats-concepts/subjects
 	Subject string `protobuf:"bytes,1,opt,name=subject,proto3" json:"subject,omitempty"`
-	// The event to publish.
+	// The event data. The data is dynamic and it is up to the publisher
+	// and subscriber to agree on the Protobuf messages to support.
+	//
+	// Each subject can support several different types of data, which can be
+	// useful to support different versions of the data. Subscribers should
+	// ignore data they do not understand.
 	Data *anypb.Any `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
-	// Timestamp of the event, if not set, the server will use the current time.
+	// Timestamp of the event.
+	//
+	// Defaults to the current time of the server if not provided.
 	Timestamp *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=timestamp,proto3,oneof" json:"timestamp,omitempty"`
 	// Key used to prevent duplicate events from being stored if a retry is
 	// needed. Should be set to a unique value for each publish request of a
 	// specific event.
+	//
+	// No default, events will not be deduplicated if not provided.
 	IdempotencyKey *string `protobuf:"bytes,4,opt,name=idempotency_key,json=idempotencyKey,proto3,oneof" json:"idempotency_key,omitempty"`
-	// The id of the last event that was published to the stream. Used for
-	// optimistic concurrency control, if the last event id does not match
-	// the current last event id, the publish will fail.
+	// The id of the event that is expected to be in the last published event in
+	// the stream.
+	//
+	// Used for optimistic concurrency control, if the specified event id does
+	// not match the current last event id, the publish will fail.
+	//
+	// No default, publish will not check the last event if not provided.
 	ExpectedLastId *uint64 `protobuf:"varint,5,opt,name=expected_last_id,json=expectedLastId,proto3,oneof" json:"expected_last_id,omitempty"`
 }
 
@@ -694,7 +774,7 @@ func (x *PublishEventResponse) GetId() uint64 {
 // The first message sent on the stream must be a Subscribe message, after
 // which the client can send Ack, Reject or Ping messages.
 //
-// Events should be either acknowledge or rejected, otherwise they will be
+// Events should be either acknowledged or rejected, otherwise they will be
 // resent after a timeout. If processing takes of an event takes a while pings
 // should be sent to indicate that the event is still being processed.
 type ConsumeRequest struct {
@@ -785,21 +865,30 @@ type isConsumeRequest_Request interface {
 type ConsumeRequest_Subscribe_ struct {
 	// Subscribe to events, must be sent as the first message in the stream
 	// to establish what events to listen to.
+	//
+	// A ConsumeResponse.Subscribed message will be sent in response to
+	// this message. If the subscription fails, the stream will be closed.
 	Subscribe *ConsumeRequest_Subscribe `protobuf:"bytes,1,opt,name=subscribe,proto3,oneof"`
 }
 
 type ConsumeRequest_Ack_ struct {
-	// Acknowledge that some events have been successfully processed.
+	// Acknowledge that some events have been successfully processed. When
+	// an event is acknowledged a ConsumeResponse.AckConfirmation message
+	// will be sent in response.
 	Ack *ConsumeRequest_Ack `protobuf:"bytes,2,opt,name=ack,proto3,oneof"`
 }
 
 type ConsumeRequest_Reject_ struct {
-	// Acknowledge that some events have failed to be processed.
+	// Acknowledge that some events have failed to be processed. When an
+	// event is rejected a ConsumeResponse.RejectConfirmation message will
+	// be sent in response.
 	Reject *ConsumeRequest_Reject `protobuf:"bytes,3,opt,name=reject,proto3,oneof"`
 }
 
 type ConsumeRequest_Ping_ struct {
-	// Ping events to indicate that they are still being processed.
+	// Ping events to indicate that they are still being processed. When
+	// an event is pinged a ConsumeResponse.PingConfirmation message will
+	// be sent in response.
 	Ping *ConsumeRequest_Ping `protobuf:"bytes,4,opt,name=ping,proto3,oneof"`
 }
 
@@ -939,7 +1028,8 @@ func (*ConsumeResponse_RejectConfirmation_) isConsumeResponse_Response() {}
 
 func (*ConsumeResponse_PingConfirmation_) isConsumeResponse_Response() {}
 
-// A pointer to start receiving events from.
+// A pointer to a position in a stream. Used to determine where to start
+// consuming events from.
 type StreamPointer struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1053,7 +1143,7 @@ func (*StreamPointer_Time) isStreamPointer_Pointer() {}
 
 func (*StreamPointer_Offset) isStreamPointer_Pointer() {}
 
-// An event that was published.
+// Event that was published and sent to a subscriber.
 type Event struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1067,7 +1157,12 @@ type Event struct {
 	Subject string `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
 	// Headers of the event.
 	Headers *Headers `protobuf:"bytes,3,opt,name=headers,proto3" json:"headers,omitempty"`
-	// Data of the event.
+	// Data of the event. The data is dynamic and it is up to the publisher
+	// and subscriber to agree on the Protobuf messages to support.
+	//
+	// Each subject can support several different types of data, which can be
+	// useful to support different versions of the data. Subscribers should
+	// ignore data they do not understand.
 	Data *anypb.Any `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
 }
 
@@ -1140,8 +1235,7 @@ type Headers struct {
 	// may set this when publishing.
 	Timestamp *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	// Key used to prevent duplicate events from being stored if a retry is
-	// needed. Should be set to a unique value for each publish request of a
-	// specific event.
+	// needed.
 	IdempotencyKey *string `protobuf:"bytes,2,opt,name=idempotency_key,json=idempotencyKey,proto3,oneof" json:"idempotency_key,omitempty"`
 	// Parent trace id in the W3C trace context format.
 	TraceParent *string `protobuf:"bytes,3,opt,name=trace_parent,json=traceParent,proto3,oneof" json:"trace_parent,omitempty"`
@@ -1217,21 +1311,34 @@ type EnsureStreamRequest_RetentionPolicy struct {
 
 	// Maximum age of events in the stream. Events older than this will be
 	// deleted.
+	//
+	// No default, if not provided events will not be deleted based on age.
 	MaxAge *durationpb.Duration `protobuf:"bytes,1,opt,name=max_age,json=maxAge,proto3,oneof" json:"max_age,omitempty"`
 	// Maximum number of events in the stream. Events beyond this limit will
 	// be deleted.
+	//
+	// No default, if not provided events will not be deleted based on
+	// count.
 	MaxEvents *uint64 `protobuf:"varint,2,opt,name=max_events,json=maxEvents,proto3,oneof" json:"max_events,omitempty"`
 	// Maximum number of events per subject in the stream. Events beyond
 	// this limit will be deleted.
+	//
+	// No default, if not provided events will not be deleted based on
+	// count.
 	MaxEventsPerSubject *uint64 `protobuf:"varint,3,opt,name=max_events_per_subject,json=maxEventsPerSubject,proto3,oneof" json:"max_events_per_subject,omitempty"`
-	// Maximum size of events in the stream. Events beyond this limit will
-	// be deleted.
+	// Maximum total byte size of all events in the stream. Events beyond
+	// this limit will be deleted.
+	//
+	// No default, if not provided events will not be deleted based on size.
 	MaxBytes *uint64 `protobuf:"varint,4,opt,name=max_bytes,json=maxBytes,proto3,oneof" json:"max_bytes,omitempty"`
-	// Policy to use when discarding events the stream is full. Defaults
-	// to discarding old events.
+	// Policy to use when discarding events the stream is full.
+	//
+	// Defaults to discarding old events if not provided.
 	DiscardPolicy *EnsureStreamRequest_DiscardPolicy `protobuf:"varint,5,opt,name=discard_policy,json=discardPolicy,proto3,enum=windshift.events.v1alpha1.EnsureStreamRequest_DiscardPolicy,oneof" json:"discard_policy,omitempty"`
 	// If discard policy is set to discard new events, settings this to
 	// true will discard new events per subject instead of globally.
+	//
+	// Defaults to false if not provided.
 	DiscardNewPerSubject *bool `protobuf:"varint,6,opt,name=discard_new_per_subject,json=discardNewPerSubject,proto3,oneof" json:"discard_new_per_subject,omitempty"`
 }
 
@@ -1315,7 +1422,31 @@ type EnsureStreamRequest_Subjects struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// List of subjects.
+	// List of subjects. Subjects are case-sensitive and should only
+	// contain the following characters:
+	//
+	//   - `a` to `z`, `A` to `Z` and `0` to `9` are allowed.
+	//
+	//   - `_` and `-` are allowed for separating words, but the use of
+	//     camelCase is recommended.
+	//
+	//   - `.` is allowed and used as a hierarchy separator, such as
+	//     `time.us.east` and `time.eu.sweden`, which share the `time`
+	//     prefix.
+	//
+	//   - `*` matches a single token, at any level of the subject. Such as
+	//     `time.*.east` will match `time.us.east` and `time.eu.east` but
+	//     not `time.us.west` or `time.us.central.east`. Similarly `time.us.*`
+	//     will match `time.us.east` but not `time.us.east.atlanta`.
+	//
+	//     The `*` wildcard can be used multiple times in a subject, such as
+	//     `time.*.*` will match `time.us.east` and `time.eu.west` but not
+	//     `time.us.east.atlanta`.
+	//   - `>` matches one or more tokens at the tail of a subject, and can
+	//     only be used as the last token. Such as `time.us.>` will match
+	//     `time.us.east` and `time.us.east.atlanta` but not `time.eu.east`.
+	//
+	// See NATS concepts: https://docs.nats.io/nats-concepts/subjects
 	Subjects []string `protobuf:"bytes,1,rep,name=subjects,proto3" json:"subjects,omitempty"`
 }
 
@@ -1358,17 +1489,44 @@ func (x *EnsureStreamRequest_Subjects) GetSubjects() []string {
 	return nil
 }
 
-// A stream that can be mirrored into the stream.
+// Source describing mirroring/aggregation of events from another stream
+// into this stream.
 type EnsureStreamRequest_StreamSource struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// Stream to receive events from.
+	// Stream to receive events from. The stream must already exist.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Optionally define where to start receiving events from.
+	//
+	// Defaults to the start of stream if not provided.
 	Pointer *StreamPointer `protobuf:"bytes,2,opt,name=pointer,proto3,oneof" json:"pointer,omitempty"`
-	// Optionally filter events by subject.
+	// Optionally filter events by subject. Subjects are case-sensitive and
+	// should only contain the following characters:
+	//
+	//   - `a` to `z`, `A` to `Z` and `0` to `9` are allowed.
+	//
+	//   - `_` and `-` are allowed for separating words, but the use of
+	//     camelCase is recommended.
+	//
+	//   - `.` is allowed and used as a hierarchy separator, such as
+	//     `time.us.east` and `time.eu.sweden`, which share the `time`
+	//     prefix.
+	//
+	//   - `*` matches a single token, at any level of the subject. Such as
+	//     `time.*.east` will match `time.us.east` and `time.eu.east` but
+	//     not `time.us.west` or `time.us.central.east`. Similarly `time.us.*`
+	//     will match `time.us.east` but not `time.us.east.atlanta`.
+	//
+	//     The `*` wildcard can be used multiple times in a subject, such as
+	//     `time.*.*` will match `time.us.east` and `time.eu.west` but not
+	//     `time.us.east.atlanta`.
+	//   - `>` matches one or more tokens at the tail of a subject, and can
+	//     only be used as the last token. Such as `time.us.>` will match
+	//     `time.us.east` and `time.us.east.atlanta` but not `time.eu.east`.
+	//
+	// See NATS concepts: https://docs.nats.io/nats-concepts/subjects
 	FilterSubjects []string `protobuf:"bytes,3,rep,name=filter_subjects,json=filterSubjects,proto3" json:"filter_subjects,omitempty"`
 }
 
@@ -1481,8 +1639,12 @@ type EnsureStreamRequest_Storage struct {
 	unknownFields protoimpl.UnknownFields
 
 	// The type of storage to use for the stream.
+	//
+	// Defaults to file based storage if not provided.
 	Type *EnsureStreamRequest_StorageType `protobuf:"varint,1,opt,name=type,proto3,enum=windshift.events.v1alpha1.EnsureStreamRequest_StorageType,oneof" json:"type,omitempty"`
 	// Number of replicas to use for the stream.
+	//
+	// Defaults to 1 if not provided.
 	Replicas *uint32 `protobuf:"varint,2,opt,name=replicas,proto3,oneof" json:"replicas,omitempty"`
 }
 
@@ -1538,18 +1700,20 @@ type ConsumeRequest_Subscribe struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// The id of the stream to subscribe to.
+	// The name of the stream to subscribe to. The stream must already
+	// exist.
 	Stream string `protobuf:"bytes,1,opt,name=stream,proto3" json:"stream,omitempty"`
-	// The id of the consumer, should be an id previously created using
+	// The name of the consumer, should be an name previously created using
 	// EnsureConsumer.
 	Consumer string `protobuf:"bytes,2,opt,name=consumer,proto3" json:"consumer,omitempty"`
-	// The maximum number of events to process at once. If not provided
-	// a limit of 50 will be used.
+	// The maximum number of events to process at once.
 	//
 	// In most cases this should be set to approximately the number of
 	// events that can be processed in parallel plus a small buffer. The
 	// server will ramp up events to this limit, and will only send more
 	// events once the client has acknowledged or rejected events.
+	//
+	// Defaults to 50 if not provided.
 	MaxProcessingEvents *uint64 `protobuf:"varint,4,opt,name=max_processing_events,json=maxProcessingEvents,proto3,oneof" json:"max_processing_events,omitempty"`
 }
 
@@ -1666,9 +1830,13 @@ type ConsumeRequest_Reject struct {
 	// Permanently reject the events, if not provided the events will be
 	// retried after a timeout. If permanently is set to true, the events
 	// will not be redelivered.
+	//
+	// Can not be combined with delay.
 	Permanently *bool `protobuf:"varint,2,opt,name=permanently,proto3,oneof" json:"permanently,omitempty"`
 	// Optional time to wait before redelivering the events. If not
 	// provided the server will decide how long to wait.
+	//
+	// Can not be combined with permanently.
 	Delay *durationpb.Duration `protobuf:"bytes,3,opt,name=delay,proto3,oneof" json:"delay,omitempty"`
 }
 
@@ -1725,7 +1893,10 @@ func (x *ConsumeRequest_Reject) GetDelay() *durationpb.Duration {
 	return nil
 }
 
-// Ping events to indicate that they are still being processed.
+// Ping events to indicate that they are still being processed. Pings should
+// be sent regularly to indicate that the events are still being processed.
+// It is recommended to send pings at half the interval of the processing
+// timeout.
 type ConsumeRequest_Ping struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
