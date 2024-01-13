@@ -51,7 +51,12 @@ func (m *Manager) Publish(ctx context.Context, config *PublishConfig) (*Publishe
 
 	if !IsValidSubject(config.Subject, false) {
 		span.SetStatus(codes.Error, "invalid subject")
-		return nil, errors.Newf("invalid subject: %s", config.Subject)
+		return nil, ErrInvalidSubject
+	}
+
+	if config.Data == nil {
+		span.SetStatus(codes.Error, "no data specified")
+		return nil, ErrInvalidData
 	}
 
 	// Create the message
@@ -120,6 +125,22 @@ func (m *Manager) Publish(ctx context.Context, config *PublishConfig) (*Publishe
 	case err := <-f.Err():
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to publish message")
+
+		if errors.Is(err, jetstream.ErrNoStreamResponse) {
+			return nil, ErrNoStreamResponse
+		} else if errors.Is(err, nats.ErrNoResponders) {
+			return nil, ErrUnboundSubject
+		} else if errors.Is(err, nats.ErrTimeout) {
+			return nil, ErrPublishTimeout
+		}
+
+		var natsErr *jetstream.APIError
+		if errors.As(err, &natsErr) {
+			if natsErr.ErrorCode == jetstream.JSErrCodeStreamWrongLastSequence {
+				return nil, ErrWrongSequence
+			}
+		}
+
 		return nil, errors.Wrap(err, "failed to publish message")
 	}
 }
