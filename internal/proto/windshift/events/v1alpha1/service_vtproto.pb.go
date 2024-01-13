@@ -36,18 +36,28 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type EventsServiceClient interface {
 	// Ensure that a certain stream exists. Used to create streams to collect
-	// events for certain subjects. Subscriptions can then be created to
-	// subscribe to these streams.
+	// events for certain subjects. Consumers can then be created to
+	// for these streams.
 	EnsureStream(ctx context.Context, in *EnsureStreamRequest, opts ...grpc.CallOption) (*EnsureStreamResponse, error)
-	// Ensure that a certain consumer exists and can be subscribed to.
+	// Ensure that a certain consumer exists. Creates a consumer whose events
+	// can be consumed by subscribers.
+	//
+	// Consumers are managed by the programs that use them, and this request
+	// is commonly sent at the start of a program to ensure that the consumer
+	// exists.
 	EnsureConsumer(ctx context.Context, in *EnsureConsumerRequest, opts ...grpc.CallOption) (*EnsureConsumerResponse, error)
-	// Delete a consumer.
+	// Delete a previously created consumer.
 	DeleteConsumer(ctx context.Context, in *DeleteConsumerRequest, opts ...grpc.CallOption) (*DeleteConsumerResponse, error)
 	// Publish an event.
 	PublishEvent(ctx context.Context, in *PublishEventRequest, opts ...grpc.CallOption) (*PublishEventResponse, error)
 	// Consume subscribes to events and returns them as they are published. The
 	// stream is bidirectional, so the client can acknowledge/reject events as
 	// they are received.
+	//
+	// The first message sent on the stream must be a Subscribe message, after
+	// which the server will respond with a Subscribed message. The client will
+	// then receive events as they are published, and should acknowledge, reject
+	// and ping as needed.
 	Consume(ctx context.Context, opts ...grpc.CallOption) (EventsService_ConsumeClient, error)
 }
 
@@ -131,18 +141,28 @@ func (x *eventsServiceConsumeClient) Recv() (*ConsumeResponse, error) {
 // for forward compatibility
 type EventsServiceServer interface {
 	// Ensure that a certain stream exists. Used to create streams to collect
-	// events for certain subjects. Subscriptions can then be created to
-	// subscribe to these streams.
+	// events for certain subjects. Consumers can then be created to
+	// for these streams.
 	EnsureStream(context.Context, *EnsureStreamRequest) (*EnsureStreamResponse, error)
-	// Ensure that a certain consumer exists and can be subscribed to.
+	// Ensure that a certain consumer exists. Creates a consumer whose events
+	// can be consumed by subscribers.
+	//
+	// Consumers are managed by the programs that use them, and this request
+	// is commonly sent at the start of a program to ensure that the consumer
+	// exists.
 	EnsureConsumer(context.Context, *EnsureConsumerRequest) (*EnsureConsumerResponse, error)
-	// Delete a consumer.
+	// Delete a previously created consumer.
 	DeleteConsumer(context.Context, *DeleteConsumerRequest) (*DeleteConsumerResponse, error)
 	// Publish an event.
 	PublishEvent(context.Context, *PublishEventRequest) (*PublishEventResponse, error)
 	// Consume subscribes to events and returns them as they are published. The
 	// stream is bidirectional, so the client can acknowledge/reject events as
 	// they are received.
+	//
+	// The first message sent on the stream must be a Subscribe message, after
+	// which the server will respond with a Subscribed message. The client will
+	// then receive events as they are published, and should acknowledge, reject
+	// and ping as needed.
 	Consume(EventsService_ConsumeServer) error
 	mustEmbedUnimplementedEventsServiceServer()
 }
