@@ -6,17 +6,22 @@ import "google/protobuf/any.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 
-// Service to work with events, including publishing and subscribing to events.
+// Service to work with events, including publishing and consuming events.
 service EventsService {
 	// Ensure that a certain stream exists. Used to create streams to collect
-	// events for certain subjects. Subscriptions can then be created to
-	// subscribe to these streams.
+	// events for certain subjects. Consumers can then be created to
+	// for these streams.
 	rpc EnsureStream(EnsureStreamRequest) returns (EnsureStreamResponse);
 
-	// Ensure that a certain consumer exists and can be subscribed to.
+	// Ensure that a certain consumer exists. Creates a consumer whose events
+	// can be consumed by subscribers.
+	//
+	// Consumers are managed by the programs that use them, and this request
+	// is commonly sent at the start of a program to ensure that the consumer
+	// exists.
 	rpc EnsureConsumer(EnsureConsumerRequest) returns (EnsureConsumerResponse);
 
-	// Delete a consumer.
+	// Delete a previously created consumer.
 	rpc DeleteConsumer(DeleteConsumerRequest) returns (DeleteConsumerResponse);
 
 	// Publish an event.
@@ -33,6 +38,11 @@ service EventsService {
 	rpc Consume(stream ConsumeRequest) returns (stream ConsumeResponse) {}
 }
 
+/**
+ * Request that creates or updates a stream. Commonly called at the start of
+ * a program to ensure that the stream exists, or in a declarative way by the
+ * admin to ensure that the stream is configured correctly.
+ */
 message EnsureStreamRequest {
 	// Policy for how events in the stream should be retained.
 	message RetentionPolicy {
@@ -209,8 +219,16 @@ message EnsureStreamRequest {
 	optional uint32 max_event_size = 8;
 }
 
+/**
+ * Response to creating or updating a stream.
+ */
 message EnsureStreamResponse {}
 
+/**
+ * Request to create or update a consumer. Consumers are managed by the programs
+ * that use them, and this event is commonly sent at the start of a program to
+ * ensure that the consumer exists.
+ */
 message EnsureConsumerRequest {
 	// The event stream to consume events from. The stream must already exist.
 	string stream = 1;
@@ -266,18 +284,28 @@ message EnsureConsumerRequest {
 	optional google.protobuf.Duration processing_timeout = 5;
 }
 
+/**
+ * Response to creating or updating a consumer.
+ */
 message EnsureConsumerResponse {
-	// The id of the subscription.
+	// The id of the consumer.
 	string id = 1;
 }
 
+/**
+ * Request to delete a consumer.
+ */
 message DeleteConsumerRequest {
-	// The event stream to delete the consumer from.
+	// The event stream to delete the consumer from. The stream must already
+	// exist.
 	string stream = 1;
-	// The id of the consumer to delete.
+	// The id of the consumer to delete. The consumer must already exist.
 	string id = 2;
 }
 
+/**
+ * Response to deleting a consumer.
+ */
 message DeleteConsumerResponse {}
 
 // Request to publish an event.
