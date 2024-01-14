@@ -107,7 +107,7 @@ func (m *Manager) Events(ctx context.Context, config *EventConsumeConfig) (*Even
 		maxEvents = 1
 	}
 	messages, err := consumer.Messages(
-		jetstream.PullExpiry(200*time.Millisecond),
+		jetstream.PullExpiry(1*time.Second),
 		jetstream.PullMaxMessages(maxEvents),
 	)
 	if err != nil {
