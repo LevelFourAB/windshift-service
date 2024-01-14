@@ -324,7 +324,7 @@ var _ = Describe("Streams", func() {
 					Name: "test-mirror",
 					Mirror: &events.StreamSource{
 						Name: "test",
-						Pointer: &events.StreamPointer{
+						From: &events.StreamPointer{
 							Time: time,
 						},
 					},
@@ -360,7 +360,7 @@ var _ = Describe("Streams", func() {
 					Name: "test-mirror",
 					Mirror: &events.StreamSource{
 						Name: "test",
-						Pointer: &events.StreamPointer{
+						From: &events.StreamPointer{
 							Time: timestamp,
 						},
 					},
@@ -399,7 +399,7 @@ var _ = Describe("Streams", func() {
 					Name: "test-mirror",
 					Mirror: &events.StreamSource{
 						Name: "test",
-						Pointer: &events.StreamPointer{
+						From: &events.StreamPointer{
 							Time: timestamp,
 						},
 					},
@@ -427,7 +427,7 @@ var _ = Describe("Streams", func() {
 					Name: "test-mirror",
 					Mirror: &events.StreamSource{
 						Name: "test",
-						Pointer: &events.StreamPointer{
+						From: &events.StreamPointer{
 							ID: 1,
 						},
 					},
@@ -468,7 +468,7 @@ var _ = Describe("Streams", func() {
 					Name: "test-mirror",
 					Mirror: &events.StreamSource{
 						Name: "test",
-						Pointer: &events.StreamPointer{
+						From: &events.StreamPointer{
 							ID: e.ID,
 						},
 					},
@@ -496,7 +496,7 @@ var _ = Describe("Streams", func() {
 					Name: "test-mirror",
 					Mirror: &events.StreamSource{
 						Name: "test",
-						Pointer: &events.StreamPointer{
+						From: &events.StreamPointer{
 							ID: 1,
 						},
 					},
@@ -530,7 +530,7 @@ var _ = Describe("Streams", func() {
 					Name: "test-mirror",
 					Mirror: &events.StreamSource{
 						Name: "test",
-						Pointer: &events.StreamPointer{
+						From: &events.StreamPointer{
 							First: true,
 						},
 					},
@@ -566,7 +566,7 @@ var _ = Describe("Streams", func() {
 					Name: "test-mirror",
 					Mirror: &events.StreamSource{
 						Name: "test",
-						Pointer: &events.StreamPointer{
+						From: &events.StreamPointer{
 							First: true,
 						},
 					},
@@ -594,7 +594,7 @@ var _ = Describe("Streams", func() {
 					Name: "test-mirror",
 					Mirror: &events.StreamSource{
 						Name: "test",
-						Pointer: &events.StreamPointer{
+						From: &events.StreamPointer{
 							First: false,
 						},
 					},
@@ -630,7 +630,7 @@ var _ = Describe("Streams", func() {
 					Name: "test-mirror",
 					Mirror: &events.StreamSource{
 						Name: "test",
-						Pointer: &events.StreamPointer{
+						From: &events.StreamPointer{
 							First: false,
 						},
 					},
@@ -802,7 +802,7 @@ var _ = Describe("Streams", func() {
 					Sources: []*events.StreamSource{
 						{
 							Name: "test",
-							Pointer: &events.StreamPointer{
+							From: &events.StreamPointer{
 								ID: e.ID,
 							},
 						},
@@ -849,7 +849,7 @@ var _ = Describe("Streams", func() {
 					Sources: []*events.StreamSource{
 						{
 							Name: "test",
-							Pointer: &events.StreamPointer{
+							From: &events.StreamPointer{
 								Time: now,
 							},
 						},
@@ -887,7 +887,7 @@ var _ = Describe("Streams", func() {
 					Sources: []*events.StreamSource{
 						{
 							Name: "test",
-							Pointer: &events.StreamPointer{
+							From: &events.StreamPointer{
 								First: true,
 							},
 						},
@@ -925,7 +925,7 @@ var _ = Describe("Streams", func() {
 					Sources: []*events.StreamSource{
 						{
 							Name: "test",
-							Pointer: &events.StreamPointer{
+							From: &events.StreamPointer{
 								First: false,
 							},
 						},

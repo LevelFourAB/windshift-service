@@ -40,7 +40,7 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   sub.ID,
 			})
@@ -49,14 +49,14 @@ var _ = Describe("Event Consumption", func() {
 		})
 
 		It("without stream name fails to create", func(ctx context.Context) {
-			_, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			_, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Name: "test",
 			})
 			Expect(err).To(HaveOccurred())
 		})
 
 		It("without name fails to create", func(ctx context.Context) {
-			_, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			_, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 			})
 			Expect(err).To(HaveOccurred())
@@ -71,7 +71,7 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   sub.ID,
 			})
@@ -89,7 +89,7 @@ var _ = Describe("Event Consumption", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
-			case event := <-ec.Events():
+			case event := <-ec.Incoming():
 				Expect(event).ToNot(BeNil())
 				Expect(event.Subject).To(Equal("events.test"))
 				Expect(event.Data).ToNot(BeNil())
@@ -122,14 +122,14 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec1, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec1, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   sub1.ID,
 			})
 			Expect(err).ToNot(HaveOccurred())
 			defer ec1.Close()
 
-			ec2, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec2, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   sub2.ID,
 			})
@@ -145,14 +145,14 @@ var _ = Describe("Event Consumption", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
-			case event := <-ec1.Events():
+			case event := <-ec1.Incoming():
 				Expect(event).ToNot(BeNil())
 			case <-time.After(200 * time.Millisecond):
 				Fail("no event received")
 			}
 
 			select {
-			case event := <-ec2.Events():
+			case event := <-ec2.Incoming():
 				Expect(event).ToNot(BeNil())
 			case <-time.After(200 * time.Millisecond):
 				Fail("no event received")
@@ -176,7 +176,7 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   sub.ID,
 			})
@@ -184,7 +184,7 @@ var _ = Describe("Event Consumption", func() {
 			defer ec.Close()
 
 			select {
-			case <-ec.Events():
+			case <-ec.Incoming():
 				Fail("received event")
 			case <-time.After(200 * time.Millisecond):
 			}
@@ -204,13 +204,13 @@ var _ = Describe("Event Consumption", func() {
 				Subjects: []string{
 					"events.>",
 				},
-				Pointer: &events.StreamPointer{
+				From: &events.StreamPointer{
 					First: true,
 				},
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   sub.ID,
 			})
@@ -218,7 +218,7 @@ var _ = Describe("Event Consumption", func() {
 			defer ec.Close()
 
 			select {
-			case event := <-ec.Events():
+			case event := <-ec.Incoming():
 				Expect(event).ToNot(BeNil())
 			case <-time.After(200 * time.Millisecond):
 				Fail("no event received")
@@ -237,7 +237,7 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
@@ -255,7 +255,7 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
@@ -271,7 +271,7 @@ var _ = Describe("Event Consumption", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
-			case event := <-ec.Events():
+			case event := <-ec.Incoming():
 				Expect(event).ToNot(BeNil())
 
 				err = event.Ack()
@@ -296,14 +296,14 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec1, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec1, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
 			Expect(err).ToNot(HaveOccurred())
 			defer ec1.Close()
 
-			ec2, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec2, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
@@ -326,12 +326,12 @@ var _ = Describe("Event Consumption", func() {
 		_outer:
 			for {
 				select {
-				case e := <-ec1.Events():
+				case e := <-ec1.Incoming():
 					eventsReceived++
 					ec1EventsReceived++
 					err = e.Ack()
 					Expect(err).ToNot(HaveOccurred())
-				case e := <-ec2.Events():
+				case e := <-ec2.Incoming():
 					eventsReceived++
 					ec2EventsReceived++
 					err = e.Ack()
@@ -368,14 +368,14 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec1, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec1, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test1",
 			})
 			Expect(err).ToNot(HaveOccurred())
 			defer ec1.Close()
 
-			ec2, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec2, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test2",
 			})
@@ -391,14 +391,14 @@ var _ = Describe("Event Consumption", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
-			case event := <-ec1.Events():
+			case event := <-ec1.Incoming():
 				Expect(event).ToNot(BeNil())
 			case <-time.After(200 * time.Millisecond):
 				Fail("no event received")
 			}
 
 			select {
-			case event := <-ec2.Events():
+			case event := <-ec2.Incoming():
 				Expect(event).ToNot(BeNil())
 			case <-time.After(200 * time.Millisecond):
 				Fail("no event received")
@@ -415,7 +415,7 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
@@ -433,7 +433,7 @@ var _ = Describe("Event Consumption", func() {
 
 			// Check if the event can be received again
 			select {
-			case _, ok := <-ec.Events():
+			case _, ok := <-ec.Incoming():
 				if ok {
 					Fail("event received after close")
 				}
@@ -452,7 +452,7 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
@@ -468,7 +468,7 @@ var _ = Describe("Event Consumption", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
-			case event := <-ec.Events():
+			case event := <-ec.Incoming():
 				Expect(event).ToNot(BeNil())
 
 				err = event.Ack()
@@ -478,7 +478,7 @@ var _ = Describe("Event Consumption", func() {
 			}
 
 			select {
-			case <-ec.Events():
+			case <-ec.Incoming():
 				Fail("event received again")
 			case <-time.After(200 * time.Millisecond):
 				// Make sure event isn't delivered for a certain period
@@ -496,7 +496,7 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
@@ -512,7 +512,7 @@ var _ = Describe("Event Consumption", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
-			case event := <-ec.Events():
+			case event := <-ec.Incoming():
 				Expect(event).ToNot(BeNil())
 
 				event.DiscardData()
@@ -523,7 +523,7 @@ var _ = Describe("Event Consumption", func() {
 			}
 
 			select {
-			case <-ec.Events():
+			case <-ec.Incoming():
 				Fail("event received again")
 			case <-time.After(200 * time.Millisecond):
 				// Make sure event isn't delivered for a certain period
@@ -541,7 +541,7 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
@@ -557,7 +557,7 @@ var _ = Describe("Event Consumption", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
-			case event := <-ec.Events():
+			case event := <-ec.Incoming():
 				Expect(event).ToNot(BeNil())
 
 				err = event.Reject()
@@ -567,7 +567,7 @@ var _ = Describe("Event Consumption", func() {
 			}
 
 			select {
-			case event := <-ec.Events():
+			case event := <-ec.Incoming():
 				Expect(event).ToNot(BeNil())
 
 				err = event.Ack()
@@ -593,7 +593,7 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
@@ -609,7 +609,7 @@ var _ = Describe("Event Consumption", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
-			case event := <-ec.Events():
+			case event := <-ec.Incoming():
 				Expect(event).ToNot(BeNil())
 
 				event.DiscardData()
@@ -620,7 +620,7 @@ var _ = Describe("Event Consumption", func() {
 			}
 
 			select {
-			case event := <-ec.Events():
+			case event := <-ec.Incoming():
 				Expect(event).ToNot(BeNil())
 
 				err = event.Ack()
@@ -640,13 +640,13 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec1, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec1, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec2, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec2, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
@@ -663,7 +663,7 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			event := <-ec1.Events()
+			event := <-ec1.Incoming()
 			Expect(event).ToNot(BeNil())
 			err = ec1.Close()
 			Expect(err).ToNot(HaveOccurred())
@@ -673,7 +673,7 @@ var _ = Describe("Event Consumption", func() {
 
 			// Receive the event again
 			select {
-			case event = <-ec2.Events():
+			case event = <-ec2.Incoming():
 				Expect(event).ToNot(BeNil())
 			case <-time.After(500 * time.Millisecond):
 				Fail("timeout waiting for event")
@@ -691,7 +691,7 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
@@ -707,7 +707,7 @@ var _ = Describe("Event Consumption", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
-			case event := <-ec.Events():
+			case event := <-ec.Incoming():
 				Expect(event).ToNot(BeNil())
 			case <-time.After(200 * time.Millisecond):
 				Fail("no event received")
@@ -716,7 +716,7 @@ var _ = Describe("Event Consumption", func() {
 			time.Sleep(200 * time.Millisecond)
 
 			select {
-			case event := <-ec.Events():
+			case event := <-ec.Incoming():
 				Expect(event).ToNot(BeNil())
 
 				err = event.Ack()
@@ -741,7 +741,7 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
@@ -756,7 +756,7 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			event := <-ec.Events()
+			event := <-ec.Incoming()
 			Expect(event).ToNot(BeNil())
 
 			start := time.Now()
@@ -765,7 +765,7 @@ var _ = Describe("Event Consumption", func() {
 
 			// Receive the event again
 			select {
-			case <-ec.Events():
+			case <-ec.Incoming():
 				if time.Since(start) < 100*time.Millisecond {
 					Fail("event received too early")
 				}
@@ -784,7 +784,7 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
@@ -799,7 +799,7 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			event := <-ec.Events()
+			event := <-ec.Incoming()
 			Expect(event).ToNot(BeNil())
 
 			err = event.RejectPermanently()
@@ -807,7 +807,7 @@ var _ = Describe("Event Consumption", func() {
 
 			// Receive the event again
 			select {
-			case <-ec.Events():
+			case <-ec.Incoming():
 				Fail("event received again")
 			case <-time.After(200 * time.Millisecond):
 			}
@@ -824,7 +824,7 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   "test",
 			})
@@ -839,7 +839,7 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			event := <-ec.Events()
+			event := <-ec.Incoming()
 			Expect(event).ToNot(BeNil())
 
 			err = event.Reject()
@@ -847,7 +847,7 @@ var _ = Describe("Event Consumption", func() {
 
 			// Receive the event again
 			select {
-			case <-ec.Events():
+			case <-ec.Incoming():
 				Fail("event received again")
 			case <-time.After(200 * time.Millisecond):
 			}
@@ -875,7 +875,7 @@ var _ = Describe("Event Consumption", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ec, err := manager.Consume(ctx, &events.EventConsumeConfig{
+			ec, err := manager.Events(ctx, &events.EventConsumeConfig{
 				Stream: "events",
 				Name:   sub.ID,
 			})
@@ -889,7 +889,7 @@ var _ = Describe("Event Consumption", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			select {
-			case event := <-ec.Events():
+			case event := <-ec.Incoming():
 				Expect(event).ToNot(BeNil())
 
 				eventSpan := trace.SpanFromContext(event.Context)

@@ -24,8 +24,8 @@ func (e *EventsServiceServer) EnsureConsumer(ctx context.Context, req *eventsv1a
 		config.Timeout = req.ProcessingTimeout.AsDuration()
 	}
 
-	if req.Pointer != nil {
-		config.Pointer = toStreamPointer(req.Pointer)
+	if req.From != nil {
+		config.From = toStreamPointer(req.From)
 	}
 
 	consumer, err := e.events.EnsureConsumer(ctx, config)

@@ -42,8 +42,8 @@ const (
 type StreamSource struct {
 	// Name of the stream to mirror.
 	Name string
-	// Pointer is the position in the stream to start mirroring from.
-	Pointer *StreamPointer
+	// From is the position in the stream to start mirroring from.
+	From *StreamPointer
 	// FilterSubjects is a list of subjects to filter messages from.
 	FilterSubjects []string
 }
@@ -228,14 +228,14 @@ func toNatsStreamSource(source *StreamSource) (*jetstream.StreamSource, error) {
 		res.FilterSubject = source.FilterSubjects[0]
 	}
 
-	if source.Pointer != nil {
+	if source.From != nil {
 		// Pointer has been specified, move away from the default of receiving
 		// all events stored in this stream.
-		if source.Pointer.ID != 0 {
-			res.OptStartSeq = source.Pointer.ID
-		} else if !source.Pointer.Time.IsZero() {
-			res.OptStartTime = &source.Pointer.Time
-		} else if !source.Pointer.First {
+		if source.From.ID != 0 {
+			res.OptStartSeq = source.From.ID
+		} else if !source.From.Time.IsZero() {
+			res.OptStartTime = &source.From.Time
+		} else if !source.From.First {
 			now := time.Now()
 			res.OptStartTime = &now
 		}

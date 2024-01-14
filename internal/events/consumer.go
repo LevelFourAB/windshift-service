@@ -49,9 +49,9 @@ type ConsumerConfig struct {
 	// delivered before it is considered failed.
 	MaxDeliveryAttempts uint
 
-	// Pointer describes where to start consuming from. If not specified, the
+	// From describes where to start consuming from. If not specified, the
 	// default policy is to only consume new events.
-	Pointer *StreamPointer
+	From *StreamPointer
 }
 
 // Consumer describes a consumer of events from a stream.
@@ -228,14 +228,14 @@ func (m *Manager) setConsumerSettings(c *jetstream.ConsumerConfig, qc *ConsumerC
 	if !update {
 		// When creating a consumer we can specify where to start from
 		c.DeliverPolicy = jetstream.DeliverNewPolicy
-		if qc.Pointer != nil {
-			if !qc.Pointer.Time.IsZero() {
+		if qc.From != nil {
+			if !qc.From.Time.IsZero() {
 				c.DeliverPolicy = jetstream.DeliverByStartTimePolicy
-				c.OptStartTime = &qc.Pointer.Time
-			} else if qc.Pointer.ID > 0 {
+				c.OptStartTime = &qc.From.Time
+			} else if qc.From.ID > 0 {
 				c.DeliverPolicy = jetstream.DeliverByStartSequencePolicy
-				c.OptStartSeq = qc.Pointer.ID
-			} else if qc.Pointer.First {
+				c.OptStartSeq = qc.From.ID
+			} else if qc.From.First {
 				c.DeliverPolicy = jetstream.DeliverAllPolicy
 			}
 		}

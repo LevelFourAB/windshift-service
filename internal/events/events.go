@@ -56,7 +56,7 @@ type Events struct {
 	Timeout time.Duration
 }
 
-// Consume creates a new event consumer for the specified stream and consumer.
+// Events creates a new event consumer for the specified stream and consumer.
 // The consumer must have been previously created using Manager.EnsureConsumer().
 //
 // The returned Events instance must be closed when it is no longer needed.
@@ -68,7 +68,7 @@ type Events struct {
 //
 // Example:
 //
-//	events, err := manager.Consume(ctx, &events.EventConsumeConfig{
+//	events, err := manager.Events(ctx, &events.EventConsumeConfig{
 //		Stream: "my-stream",
 //		Name:   "my-consumer",
 //	})
@@ -77,10 +77,10 @@ type Events struct {
 //	}
 //	defer events.Close()
 //
-//	for event := range events.Events() {
+//	for event := range events.Incoming() {
 //		// Handle event
 //	}
-func (m *Manager) Consume(ctx context.Context, config *EventConsumeConfig) (*Events, error) {
+func (m *Manager) Events(ctx context.Context, config *EventConsumeConfig) (*Events, error) {
 	ctx, span := m.tracer.Start(ctx, config.Stream+" subscribe")
 	defer span.End()
 
@@ -276,7 +276,7 @@ func (q *Events) Close() error {
 	return nil
 }
 
-// Events returns the channel that events will be sent to.
-func (q *Events) Events() <-chan *Event {
+// Incoming returns the channel that events will be sent to.
+func (q *Events) Incoming() <-chan *Event {
 	return q.channel
 }

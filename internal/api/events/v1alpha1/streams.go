@@ -108,7 +108,7 @@ func (e *EventsServiceServer) EnsureStream(ctx context.Context, req *eventsv1alp
 func toStreamSource(s *eventsv1alpha1.EnsureStreamRequest_StreamSource) *events.StreamSource {
 	return &events.StreamSource{
 		Name:           s.Name,
-		Pointer:        toStreamPointer(s.Pointer),
+		From:           toStreamPointer(s.From),
 		FilterSubjects: s.FilterSubjects,
 	}
 }

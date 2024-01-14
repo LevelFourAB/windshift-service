@@ -58,7 +58,7 @@ func main() {
 		Name:     name,
 		Stream:   "test",
 		Subjects: []string{"test"},
-		Pointer: &eventsv1alpha1.StreamPointer{
+		From: &eventsv1alpha1.StreamPointer{
 			Pointer: &eventsv1alpha1.StreamPointer_Start{
 				Start: true,
 			},
@@ -69,16 +69,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	stream, err := client.Consume(ctx)
+	stream, err := client.Events(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Send the initial subscription request
 	maxProcessingEvents := uint64(*parallelism)
-	err = stream.Send(&eventsv1alpha1.ConsumeRequest{
-		Request: &eventsv1alpha1.ConsumeRequest_Subscribe_{
-			Subscribe: &eventsv1alpha1.ConsumeRequest_Subscribe{
+	err = stream.Send(&eventsv1alpha1.EventsRequest{
+		Request: &eventsv1alpha1.EventsRequest_Subscribe_{
+			Subscribe: &eventsv1alpha1.EventsRequest_Subscribe{
 				Stream:              "test",
 				Consumer:            c.Id,
 				MaxProcessingEvents: &maxProcessingEvents,
@@ -95,7 +95,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	incoming := make(chan *eventsv1alpha1.ConsumeResponse)
+	incoming := make(chan *eventsv1alpha1.EventsResponse)
 	go func() {
 		for {
 			resp, err2 := stream.Recv()
@@ -151,9 +151,9 @@ func main() {
 				time.Sleep(time.Duration(sleepInMS) * time.Millisecond)
 
 				// Acknowledge the event
-				err = stream.Send(&eventsv1alpha1.ConsumeRequest{
-					Request: &eventsv1alpha1.ConsumeRequest_Ack_{
-						Ack: &eventsv1alpha1.ConsumeRequest_Ack{
+				err = stream.Send(&eventsv1alpha1.EventsRequest{
+					Request: &eventsv1alpha1.EventsRequest_Ack_{
+						Ack: &eventsv1alpha1.EventsRequest_Ack{
 							Ids: []uint64{event.Id},
 						},
 					},
