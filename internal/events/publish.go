@@ -126,9 +126,7 @@ func (m *Manager) Publish(ctx context.Context, config *PublishConfig) (*Publishe
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to publish message")
 
-		if errors.Is(err, jetstream.ErrNoStreamResponse) {
-			return nil, ErrNoStreamResponse
-		} else if errors.Is(err, nats.ErrNoResponders) {
+		if errors.Is(err, jetstream.ErrNoStreamResponse) || errors.Is(err, nats.ErrNoResponders) {
 			return nil, ErrUnboundSubject
 		} else if errors.Is(err, nats.ErrTimeout) {
 			return nil, ErrPublishTimeout
