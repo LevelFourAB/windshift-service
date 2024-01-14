@@ -27,15 +27,15 @@ service EventsService {
 	// Publish an event.
 	rpc PublishEvent(PublishEventRequest) returns (PublishEventResponse) {}
 
-	// Consume subscribes to events and returns them as they are published. The
-	// stream is bidirectional, so the client can acknowledge/reject events as
-	// they are received.
+	// Subscribes to events and returns them as they are published. This call is
+	// bidirectional, so the client can acknowledge/reject events as they are
+	// received.
 	//
 	// The first message sent on the stream must be a Subscribe message, after
 	// which the server will respond with a Subscribed message. The client will
 	// then receive events as they are published, and should acknowledge, reject
 	// and ping as needed.
-	rpc Consume(stream ConsumeRequest) returns (stream ConsumeResponse) {}
+	rpc Events(stream EventsRequest) returns (stream EventsResponse) {}
 }
 
 /*
@@ -125,7 +125,7 @@ message EnsureStreamRequest {
 		// Optionally define where to start receiving events from.
 		//
 		// Defaults to the start of stream if not provided.
-		optional StreamPointer pointer = 2;
+		optional StreamPointer from = 2;
 
 		// Optionally filter events by subject. Subjects are case-sensitive and
 		// should only contain the following characters:
@@ -273,7 +273,7 @@ message EnsureConsumerRequest {
 	// subscriber will receive old events.
 	//
 	// Defaults to new events if not provided.
-	optional StreamPointer pointer = 4;
+	optional StreamPointer from = 4;
 	// The timeout for events, after which they will be resent.
 	//
 	// Events will need to be acknowledged, rejected or pinged before the
@@ -363,7 +363,7 @@ message PublishEventResponse {
 // Events should be either acknowledged or rejected, otherwise they will be
 // resent after a timeout. If processing takes of an event takes a while pings
 // should be sent to indicate that the event is still being processed.
-message ConsumeRequest {
+message EventsRequest {
 	// Subscribe to events, must be sent as the first message in the stream.
 	message Subscribe {
 		// The name of the stream to subscribe to. The stream must already
@@ -437,7 +437,7 @@ message ConsumeRequest {
 	}
 }
 
-message ConsumeResponse {
+message EventsResponse {
 	// Confirmation that the client has subscribed to events.
 	message Subscribed {
 		// The timeout for events, after which they will be resent if not

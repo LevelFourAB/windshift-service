@@ -8,7 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Subscriptions", func() {
+var _ = Describe("Consumers", func() {
 	var service eventsv1alpha1.EventsServiceClient
 
 	BeforeEach(func(ctx context.Context) {
@@ -29,7 +29,7 @@ var _ = Describe("Subscriptions", func() {
 	})
 
 	Describe("Ephemeral", func() {
-		It("can create a subscription", func(ctx context.Context) {
+		It("can create a consumer", func(ctx context.Context) {
 			_, err := service.EnsureConsumer(ctx, &eventsv1alpha1.EnsureConsumerRequest{
 				Stream: "test",
 				Subjects: []string{
@@ -41,7 +41,7 @@ var _ = Describe("Subscriptions", func() {
 	})
 
 	Describe("Durable", func() {
-		It("can update subject of subscription", func(ctx context.Context) {
+		It("can update subject of consumer", func(ctx context.Context) {
 			subID := "test-sub"
 			_, err := service.EnsureConsumer(ctx, &eventsv1alpha1.EnsureConsumerRequest{
 				Stream: "test",

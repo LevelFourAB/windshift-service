@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func (e *EventsServiceServer) Consume(server eventsv1alpha1.EventsService_ConsumeServer) error {
+func (e *EventsServiceServer) Events(server eventsv1alpha1.EventsService_EventsServer) error {
 	ctx := server.Context()
 
 	subscribe, err := server.Recv()
@@ -28,7 +28,7 @@ func (e *EventsServiceServer) Consume(server eventsv1alpha1.EventsService_Consum
 		config := e.createEventConsumeConfig(sub)
 
 		var err2 error
-		events, err2 = e.events.Consume(ctx, config)
+		events, err2 = e.events.Events(ctx, config)
 		if err2 != nil {
 			return errors.Wrap(err2, "could not subscribe")
 		}
@@ -38,9 +38,9 @@ func (e *EventsServiceServer) Consume(server eventsv1alpha1.EventsService_Consum
 	defer events.Close()
 
 	// Send initial response
-	err = server.Send(&eventsv1alpha1.ConsumeResponse{
-		Response: &eventsv1alpha1.ConsumeResponse_Subscribed_{
-			Subscribed: &eventsv1alpha1.ConsumeResponse_Subscribed{
+	err = server.Send(&eventsv1alpha1.EventsResponse{
+		Response: &eventsv1alpha1.EventsResponse_Subscribed_{
+			Subscribed: &eventsv1alpha1.EventsResponse_Subscribed{
 				ProcessingTimeout: durationpb.New(events.Timeout),
 			},
 		},
@@ -50,7 +50,7 @@ func (e *EventsServiceServer) Consume(server eventsv1alpha1.EventsService_Consum
 	}
 
 	// Start a goroutine to read incoming messages and send them to a channel
-	messages := make(chan *eventsv1alpha1.ConsumeRequest)
+	messages := make(chan *eventsv1alpha1.EventsRequest)
 	go func() {
 		for {
 			if ctx.Err() != nil {
@@ -90,7 +90,7 @@ func (e *EventsServiceServer) Consume(server eventsv1alpha1.EventsService_Consum
 			return nil
 		case <-e.globalStop:
 			return nil
-		case event := <-events.Events():
+		case event := <-events.Incoming():
 			eventMap.Add(event)
 
 			// Create the common headers
@@ -105,8 +105,8 @@ func (e *EventsServiceServer) Consume(server eventsv1alpha1.EventsService_Consum
 			})
 
 			// Send the actual event
-			err = server.Send(&eventsv1alpha1.ConsumeResponse{
-				Response: &eventsv1alpha1.ConsumeResponse_Event{
+			err = server.Send(&eventsv1alpha1.EventsResponse{
+				Response: &eventsv1alpha1.EventsResponse_Event{
 					Event: &eventsv1alpha1.Event{
 						Id:      event.StreamSeq,
 						Data:    event.Data,
@@ -122,19 +122,19 @@ func (e *EventsServiceServer) Consume(server eventsv1alpha1.EventsService_Consum
 			event.DiscardData()
 		case request := <-messages:
 			switch r := request.Request.(type) {
-			case *eventsv1alpha1.ConsumeRequest_Subscribe_:
+			case *eventsv1alpha1.EventsRequest_Subscribe_:
 				return errors.New("cannot subscribe again")
-			case *eventsv1alpha1.ConsumeRequest_Ack_:
+			case *eventsv1alpha1.EventsRequest_Ack_:
 				err = e.handleAck(server, eventMap, r)
 				if err != nil {
 					return err
 				}
-			case *eventsv1alpha1.ConsumeRequest_Reject_:
+			case *eventsv1alpha1.EventsRequest_Reject_:
 				err = e.handleReject(server, eventMap, r)
 				if err != nil {
 					return err
 				}
-			case *eventsv1alpha1.ConsumeRequest_Ping_:
+			case *eventsv1alpha1.EventsRequest_Ping_:
 				err = e.handlePing(server, eventMap, r)
 				if err != nil {
 					return err
@@ -145,9 +145,9 @@ func (e *EventsServiceServer) Consume(server eventsv1alpha1.EventsService_Consum
 }
 
 func (e *EventsServiceServer) handleAck(
-	server eventsv1alpha1.EventsService_ConsumeServer,
+	server eventsv1alpha1.EventsService_EventsServer,
 	eventMap eventTracker,
-	r *eventsv1alpha1.ConsumeRequest_Ack_,
+	r *eventsv1alpha1.EventsRequest_Ack_,
 ) error {
 	ids := r.Ack.Ids
 
@@ -175,9 +175,9 @@ func (e *EventsServiceServer) handleAck(
 		}
 	}
 
-	err := server.Send(&eventsv1alpha1.ConsumeResponse{
-		Response: &eventsv1alpha1.ConsumeResponse_AckConfirmation_{
-			AckConfirmation: &eventsv1alpha1.ConsumeResponse_AckConfirmation{
+	err := server.Send(&eventsv1alpha1.EventsResponse{
+		Response: &eventsv1alpha1.EventsResponse_AckConfirmation_{
+			AckConfirmation: &eventsv1alpha1.EventsResponse_AckConfirmation{
 				Ids:                processedIds,
 				InvalidIds:         invalidIds,
 				TemporaryFailedIds: temporaryErrors,
@@ -192,9 +192,9 @@ func (e *EventsServiceServer) handleAck(
 }
 
 func (e *EventsServiceServer) handleReject(
-	server eventsv1alpha1.EventsService_ConsumeServer,
+	server eventsv1alpha1.EventsService_EventsServer,
 	eventMap eventTracker,
-	r *eventsv1alpha1.ConsumeRequest_Reject_,
+	r *eventsv1alpha1.EventsRequest_Reject_,
 ) error {
 	ids := r.Reject.Ids
 	permanently := r.Reject.Permanently
@@ -232,9 +232,9 @@ func (e *EventsServiceServer) handleReject(
 		}
 	}
 
-	err := server.Send(&eventsv1alpha1.ConsumeResponse{
-		Response: &eventsv1alpha1.ConsumeResponse_RejectConfirmation_{
-			RejectConfirmation: &eventsv1alpha1.ConsumeResponse_RejectConfirmation{
+	err := server.Send(&eventsv1alpha1.EventsResponse{
+		Response: &eventsv1alpha1.EventsResponse_RejectConfirmation_{
+			RejectConfirmation: &eventsv1alpha1.EventsResponse_RejectConfirmation{
 				Ids:                processedIds,
 				InvalidIds:         invalidIds,
 				TemporaryFailedIds: temporaryErrors,
@@ -249,9 +249,9 @@ func (e *EventsServiceServer) handleReject(
 }
 
 func (e *EventsServiceServer) handlePing(
-	server eventsv1alpha1.EventsService_ConsumeServer,
+	server eventsv1alpha1.EventsService_EventsServer,
 	eventMap eventTracker,
-	r *eventsv1alpha1.ConsumeRequest_Ping_,
+	r *eventsv1alpha1.EventsRequest_Ping_,
 ) error {
 	ids := r.Ping.Ids
 
@@ -278,9 +278,9 @@ func (e *EventsServiceServer) handlePing(
 		}
 	}
 
-	err := server.Send(&eventsv1alpha1.ConsumeResponse{
-		Response: &eventsv1alpha1.ConsumeResponse_PingConfirmation_{
-			PingConfirmation: &eventsv1alpha1.ConsumeResponse_PingConfirmation{
+	err := server.Send(&eventsv1alpha1.EventsResponse{
+		Response: &eventsv1alpha1.EventsResponse_PingConfirmation_{
+			PingConfirmation: &eventsv1alpha1.EventsResponse_PingConfirmation{
 				Ids:                processedIds,
 				InvalidIds:         invalidIds,
 				TemporaryFailedIds: temporaryErrors,
@@ -294,7 +294,7 @@ func (e *EventsServiceServer) handlePing(
 	return nil
 }
 
-func (*EventsServiceServer) createEventConsumeConfig(sub *eventsv1alpha1.ConsumeRequest_Subscribe) *events.EventConsumeConfig {
+func (*EventsServiceServer) createEventConsumeConfig(sub *eventsv1alpha1.EventsRequest_Subscribe) *events.EventConsumeConfig {
 	maxPendingEvents := uint(0)
 	if sub.MaxProcessingEvents != nil {
 		maxPendingEvents = uint(*sub.MaxProcessingEvents)

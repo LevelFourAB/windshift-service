@@ -50,15 +50,15 @@ type EventsServiceClient interface {
 	DeleteConsumer(ctx context.Context, in *DeleteConsumerRequest, opts ...grpc.CallOption) (*DeleteConsumerResponse, error)
 	// Publish an event.
 	PublishEvent(ctx context.Context, in *PublishEventRequest, opts ...grpc.CallOption) (*PublishEventResponse, error)
-	// Consume subscribes to events and returns them as they are published. The
-	// stream is bidirectional, so the client can acknowledge/reject events as
-	// they are received.
+	// Subscribes to events and returns them as they are published. This call is
+	// bidirectional, so the client can acknowledge/reject events as they are
+	// received.
 	//
 	// The first message sent on the stream must be a Subscribe message, after
 	// which the server will respond with a Subscribed message. The client will
 	// then receive events as they are published, and should acknowledge, reject
 	// and ping as needed.
-	Consume(ctx context.Context, opts ...grpc.CallOption) (EventsService_ConsumeClient, error)
+	Events(ctx context.Context, opts ...grpc.CallOption) (EventsService_EventsClient, error)
 }
 
 type eventsServiceClient struct {
@@ -105,31 +105,31 @@ func (c *eventsServiceClient) PublishEvent(ctx context.Context, in *PublishEvent
 	return out, nil
 }
 
-func (c *eventsServiceClient) Consume(ctx context.Context, opts ...grpc.CallOption) (EventsService_ConsumeClient, error) {
-	stream, err := c.cc.NewStream(ctx, &EventsService_ServiceDesc.Streams[0], "/windshift.events.v1alpha1.EventsService/Consume", opts...)
+func (c *eventsServiceClient) Events(ctx context.Context, opts ...grpc.CallOption) (EventsService_EventsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &EventsService_ServiceDesc.Streams[0], "/windshift.events.v1alpha1.EventsService/Events", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &eventsServiceConsumeClient{stream}
+	x := &eventsServiceEventsClient{stream}
 	return x, nil
 }
 
-type EventsService_ConsumeClient interface {
-	Send(*ConsumeRequest) error
-	Recv() (*ConsumeResponse, error)
+type EventsService_EventsClient interface {
+	Send(*EventsRequest) error
+	Recv() (*EventsResponse, error)
 	grpc.ClientStream
 }
 
-type eventsServiceConsumeClient struct {
+type eventsServiceEventsClient struct {
 	grpc.ClientStream
 }
 
-func (x *eventsServiceConsumeClient) Send(m *ConsumeRequest) error {
+func (x *eventsServiceEventsClient) Send(m *EventsRequest) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *eventsServiceConsumeClient) Recv() (*ConsumeResponse, error) {
-	m := new(ConsumeResponse)
+func (x *eventsServiceEventsClient) Recv() (*EventsResponse, error) {
+	m := new(EventsResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -155,15 +155,15 @@ type EventsServiceServer interface {
 	DeleteConsumer(context.Context, *DeleteConsumerRequest) (*DeleteConsumerResponse, error)
 	// Publish an event.
 	PublishEvent(context.Context, *PublishEventRequest) (*PublishEventResponse, error)
-	// Consume subscribes to events and returns them as they are published. The
-	// stream is bidirectional, so the client can acknowledge/reject events as
-	// they are received.
+	// Subscribes to events and returns them as they are published. This call is
+	// bidirectional, so the client can acknowledge/reject events as they are
+	// received.
 	//
 	// The first message sent on the stream must be a Subscribe message, after
 	// which the server will respond with a Subscribed message. The client will
 	// then receive events as they are published, and should acknowledge, reject
 	// and ping as needed.
-	Consume(EventsService_ConsumeServer) error
+	Events(EventsService_EventsServer) error
 	mustEmbedUnimplementedEventsServiceServer()
 }
 
@@ -183,8 +183,8 @@ func (UnimplementedEventsServiceServer) DeleteConsumer(context.Context, *DeleteC
 func (UnimplementedEventsServiceServer) PublishEvent(context.Context, *PublishEventRequest) (*PublishEventResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PublishEvent not implemented")
 }
-func (UnimplementedEventsServiceServer) Consume(EventsService_ConsumeServer) error {
-	return status.Errorf(codes.Unimplemented, "method Consume not implemented")
+func (UnimplementedEventsServiceServer) Events(EventsService_EventsServer) error {
+	return status.Errorf(codes.Unimplemented, "method Events not implemented")
 }
 func (UnimplementedEventsServiceServer) mustEmbedUnimplementedEventsServiceServer() {}
 
@@ -271,26 +271,26 @@ func _EventsService_PublishEvent_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventsService_Consume_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(EventsServiceServer).Consume(&eventsServiceConsumeServer{stream})
+func _EventsService_Events_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(EventsServiceServer).Events(&eventsServiceEventsServer{stream})
 }
 
-type EventsService_ConsumeServer interface {
-	Send(*ConsumeResponse) error
-	Recv() (*ConsumeRequest, error)
+type EventsService_EventsServer interface {
+	Send(*EventsResponse) error
+	Recv() (*EventsRequest, error)
 	grpc.ServerStream
 }
 
-type eventsServiceConsumeServer struct {
+type eventsServiceEventsServer struct {
 	grpc.ServerStream
 }
 
-func (x *eventsServiceConsumeServer) Send(m *ConsumeResponse) error {
+func (x *eventsServiceEventsServer) Send(m *EventsResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *eventsServiceConsumeServer) Recv() (*ConsumeRequest, error) {
-	m := new(ConsumeRequest)
+func (x *eventsServiceEventsServer) Recv() (*EventsRequest, error) {
+	m := new(EventsRequest)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -323,8 +323,8 @@ var EventsService_ServiceDesc = grpc.ServiceDesc{
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "Consume",
-			Handler:       _EventsService_Consume_Handler,
+			StreamName:    "Events",
+			Handler:       _EventsService_Events_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
 		},
@@ -498,8 +498,8 @@ func (m *EnsureStreamRequest_StreamSource) MarshalToSizedBufferVT(dAtA []byte) (
 			dAtA[i] = 0x1a
 		}
 	}
-	if m.Pointer != nil {
-		size, err := m.Pointer.MarshalToSizedBufferVT(dAtA[:i])
+	if m.From != nil {
+		size, err := m.From.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -844,8 +844,8 @@ func (m *EnsureConsumerRequest) MarshalToSizedBufferVT(dAtA []byte) (int, error)
 		i--
 		dAtA[i] = 0x2a
 	}
-	if m.Pointer != nil {
-		size, err := m.Pointer.MarshalToSizedBufferVT(dAtA[:i])
+	if m.From != nil {
+		size, err := m.From.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -1134,7 +1134,7 @@ func (m *PublishEventResponse) MarshalToSizedBufferVT(dAtA []byte) (int, error) 
 	return len(dAtA) - i, nil
 }
 
-func (m *ConsumeRequest_Subscribe) MarshalVT() (dAtA []byte, err error) {
+func (m *EventsRequest_Subscribe) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -1147,12 +1147,12 @@ func (m *ConsumeRequest_Subscribe) MarshalVT() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ConsumeRequest_Subscribe) MarshalToVT(dAtA []byte) (int, error) {
+func (m *EventsRequest_Subscribe) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeRequest_Subscribe) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *EventsRequest_Subscribe) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m == nil {
 		return 0, nil
 	}
@@ -1186,7 +1186,7 @@ func (m *ConsumeRequest_Subscribe) MarshalToSizedBufferVT(dAtA []byte) (int, err
 	return len(dAtA) - i, nil
 }
 
-func (m *ConsumeRequest_Ack) MarshalVT() (dAtA []byte, err error) {
+func (m *EventsRequest_Ack) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -1199,12 +1199,12 @@ func (m *ConsumeRequest_Ack) MarshalVT() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ConsumeRequest_Ack) MarshalToVT(dAtA []byte) (int, error) {
+func (m *EventsRequest_Ack) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeRequest_Ack) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *EventsRequest_Ack) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m == nil {
 		return 0, nil
 	}
@@ -1239,7 +1239,7 @@ func (m *ConsumeRequest_Ack) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *ConsumeRequest_Reject) MarshalVT() (dAtA []byte, err error) {
+func (m *EventsRequest_Reject) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -1252,12 +1252,12 @@ func (m *ConsumeRequest_Reject) MarshalVT() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ConsumeRequest_Reject) MarshalToVT(dAtA []byte) (int, error) {
+func (m *EventsRequest_Reject) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeRequest_Reject) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *EventsRequest_Reject) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m == nil {
 		return 0, nil
 	}
@@ -1324,7 +1324,7 @@ func (m *ConsumeRequest_Reject) MarshalToSizedBufferVT(dAtA []byte) (int, error)
 	return len(dAtA) - i, nil
 }
 
-func (m *ConsumeRequest_Ping) MarshalVT() (dAtA []byte, err error) {
+func (m *EventsRequest_Ping) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -1337,12 +1337,12 @@ func (m *ConsumeRequest_Ping) MarshalVT() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ConsumeRequest_Ping) MarshalToVT(dAtA []byte) (int, error) {
+func (m *EventsRequest_Ping) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeRequest_Ping) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *EventsRequest_Ping) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m == nil {
 		return 0, nil
 	}
@@ -1377,7 +1377,7 @@ func (m *ConsumeRequest_Ping) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *ConsumeRequest) MarshalVT() (dAtA []byte, err error) {
+func (m *EventsRequest) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -1390,12 +1390,12 @@ func (m *ConsumeRequest) MarshalVT() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ConsumeRequest) MarshalToVT(dAtA []byte) (int, error) {
+func (m *EventsRequest) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeRequest) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *EventsRequest) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m == nil {
 		return 0, nil
 	}
@@ -1419,12 +1419,12 @@ func (m *ConsumeRequest) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *ConsumeRequest_Subscribe_) MarshalToVT(dAtA []byte) (int, error) {
+func (m *EventsRequest_Subscribe_) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeRequest_Subscribe_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *EventsRequest_Subscribe_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	if m.Subscribe != nil {
 		size, err := m.Subscribe.MarshalToSizedBufferVT(dAtA[:i])
@@ -1438,12 +1438,12 @@ func (m *ConsumeRequest_Subscribe_) MarshalToSizedBufferVT(dAtA []byte) (int, er
 	}
 	return len(dAtA) - i, nil
 }
-func (m *ConsumeRequest_Ack_) MarshalToVT(dAtA []byte) (int, error) {
+func (m *EventsRequest_Ack_) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeRequest_Ack_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *EventsRequest_Ack_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	if m.Ack != nil {
 		size, err := m.Ack.MarshalToSizedBufferVT(dAtA[:i])
@@ -1457,12 +1457,12 @@ func (m *ConsumeRequest_Ack_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	}
 	return len(dAtA) - i, nil
 }
-func (m *ConsumeRequest_Reject_) MarshalToVT(dAtA []byte) (int, error) {
+func (m *EventsRequest_Reject_) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeRequest_Reject_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *EventsRequest_Reject_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	if m.Reject != nil {
 		size, err := m.Reject.MarshalToSizedBufferVT(dAtA[:i])
@@ -1476,12 +1476,12 @@ func (m *ConsumeRequest_Reject_) MarshalToSizedBufferVT(dAtA []byte) (int, error
 	}
 	return len(dAtA) - i, nil
 }
-func (m *ConsumeRequest_Ping_) MarshalToVT(dAtA []byte) (int, error) {
+func (m *EventsRequest_Ping_) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeRequest_Ping_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *EventsRequest_Ping_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	if m.Ping != nil {
 		size, err := m.Ping.MarshalToSizedBufferVT(dAtA[:i])
@@ -1495,7 +1495,7 @@ func (m *ConsumeRequest_Ping_) MarshalToSizedBufferVT(dAtA []byte) (int, error) 
 	}
 	return len(dAtA) - i, nil
 }
-func (m *ConsumeResponse_Subscribed) MarshalVT() (dAtA []byte, err error) {
+func (m *EventsResponse_Subscribed) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -1508,12 +1508,12 @@ func (m *ConsumeResponse_Subscribed) MarshalVT() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ConsumeResponse_Subscribed) MarshalToVT(dAtA []byte) (int, error) {
+func (m *EventsResponse_Subscribed) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeResponse_Subscribed) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *EventsResponse_Subscribed) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m == nil {
 		return 0, nil
 	}
@@ -1550,7 +1550,7 @@ func (m *ConsumeResponse_Subscribed) MarshalToSizedBufferVT(dAtA []byte) (int, e
 	return len(dAtA) - i, nil
 }
 
-func (m *ConsumeResponse_AckConfirmation) MarshalVT() (dAtA []byte, err error) {
+func (m *EventsResponse_AckConfirmation) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -1563,12 +1563,12 @@ func (m *ConsumeResponse_AckConfirmation) MarshalVT() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ConsumeResponse_AckConfirmation) MarshalToVT(dAtA []byte) (int, error) {
+func (m *EventsResponse_AckConfirmation) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeResponse_AckConfirmation) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *EventsResponse_AckConfirmation) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m == nil {
 		return 0, nil
 	}
@@ -1643,7 +1643,7 @@ func (m *ConsumeResponse_AckConfirmation) MarshalToSizedBufferVT(dAtA []byte) (i
 	return len(dAtA) - i, nil
 }
 
-func (m *ConsumeResponse_RejectConfirmation) MarshalVT() (dAtA []byte, err error) {
+func (m *EventsResponse_RejectConfirmation) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -1656,12 +1656,12 @@ func (m *ConsumeResponse_RejectConfirmation) MarshalVT() (dAtA []byte, err error
 	return dAtA[:n], nil
 }
 
-func (m *ConsumeResponse_RejectConfirmation) MarshalToVT(dAtA []byte) (int, error) {
+func (m *EventsResponse_RejectConfirmation) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeResponse_RejectConfirmation) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *EventsResponse_RejectConfirmation) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m == nil {
 		return 0, nil
 	}
@@ -1736,7 +1736,7 @@ func (m *ConsumeResponse_RejectConfirmation) MarshalToSizedBufferVT(dAtA []byte)
 	return len(dAtA) - i, nil
 }
 
-func (m *ConsumeResponse_PingConfirmation) MarshalVT() (dAtA []byte, err error) {
+func (m *EventsResponse_PingConfirmation) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -1749,12 +1749,12 @@ func (m *ConsumeResponse_PingConfirmation) MarshalVT() (dAtA []byte, err error) 
 	return dAtA[:n], nil
 }
 
-func (m *ConsumeResponse_PingConfirmation) MarshalToVT(dAtA []byte) (int, error) {
+func (m *EventsResponse_PingConfirmation) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeResponse_PingConfirmation) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *EventsResponse_PingConfirmation) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m == nil {
 		return 0, nil
 	}
@@ -1829,7 +1829,7 @@ func (m *ConsumeResponse_PingConfirmation) MarshalToSizedBufferVT(dAtA []byte) (
 	return len(dAtA) - i, nil
 }
 
-func (m *ConsumeResponse) MarshalVT() (dAtA []byte, err error) {
+func (m *EventsResponse) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -1842,12 +1842,12 @@ func (m *ConsumeResponse) MarshalVT() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ConsumeResponse) MarshalToVT(dAtA []byte) (int, error) {
+func (m *EventsResponse) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeResponse) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *EventsResponse) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m == nil {
 		return 0, nil
 	}
@@ -1871,12 +1871,12 @@ func (m *ConsumeResponse) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *ConsumeResponse_Event) MarshalToVT(dAtA []byte) (int, error) {
+func (m *EventsResponse_Event) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeResponse_Event) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *EventsResponse_Event) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	if m.Event != nil {
 		size, err := m.Event.MarshalToSizedBufferVT(dAtA[:i])
@@ -1890,12 +1890,12 @@ func (m *ConsumeResponse_Event) MarshalToSizedBufferVT(dAtA []byte) (int, error)
 	}
 	return len(dAtA) - i, nil
 }
-func (m *ConsumeResponse_Subscribed_) MarshalToVT(dAtA []byte) (int, error) {
+func (m *EventsResponse_Subscribed_) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeResponse_Subscribed_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *EventsResponse_Subscribed_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	if m.Subscribed != nil {
 		size, err := m.Subscribed.MarshalToSizedBufferVT(dAtA[:i])
@@ -1909,12 +1909,12 @@ func (m *ConsumeResponse_Subscribed_) MarshalToSizedBufferVT(dAtA []byte) (int, 
 	}
 	return len(dAtA) - i, nil
 }
-func (m *ConsumeResponse_AckConfirmation_) MarshalToVT(dAtA []byte) (int, error) {
+func (m *EventsResponse_AckConfirmation_) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeResponse_AckConfirmation_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *EventsResponse_AckConfirmation_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	if m.AckConfirmation != nil {
 		size, err := m.AckConfirmation.MarshalToSizedBufferVT(dAtA[:i])
@@ -1928,12 +1928,12 @@ func (m *ConsumeResponse_AckConfirmation_) MarshalToSizedBufferVT(dAtA []byte) (
 	}
 	return len(dAtA) - i, nil
 }
-func (m *ConsumeResponse_RejectConfirmation_) MarshalToVT(dAtA []byte) (int, error) {
+func (m *EventsResponse_RejectConfirmation_) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeResponse_RejectConfirmation_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *EventsResponse_RejectConfirmation_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	if m.RejectConfirmation != nil {
 		size, err := m.RejectConfirmation.MarshalToSizedBufferVT(dAtA[:i])
@@ -1947,12 +1947,12 @@ func (m *ConsumeResponse_RejectConfirmation_) MarshalToSizedBufferVT(dAtA []byte
 	}
 	return len(dAtA) - i, nil
 }
-func (m *ConsumeResponse_PingConfirmation_) MarshalToVT(dAtA []byte) (int, error) {
+func (m *EventsResponse_PingConfirmation_) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ConsumeResponse_PingConfirmation_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *EventsResponse_PingConfirmation_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	if m.PingConfirmation != nil {
 		size, err := m.PingConfirmation.MarshalToSizedBufferVT(dAtA[:i])
@@ -2310,8 +2310,8 @@ func (m *EnsureStreamRequest_StreamSource) SizeVT() (n int) {
 	if l > 0 {
 		n += 1 + l + sov(uint64(l))
 	}
-	if m.Pointer != nil {
-		l = m.Pointer.SizeVT()
+	if m.From != nil {
+		l = m.From.SizeVT()
 		n += 1 + l + sov(uint64(l))
 	}
 	if len(m.FilterSubjects) > 0 {
@@ -2460,8 +2460,8 @@ func (m *EnsureConsumerRequest) SizeVT() (n int) {
 			n += 1 + l + sov(uint64(l))
 		}
 	}
-	if m.Pointer != nil {
-		l = m.Pointer.SizeVT()
+	if m.From != nil {
+		l = m.From.SizeVT()
 		n += 1 + l + sov(uint64(l))
 	}
 	if m.ProcessingTimeout != nil {
@@ -2574,7 +2574,7 @@ func (m *PublishEventResponse) SizeVT() (n int) {
 	return n
 }
 
-func (m *ConsumeRequest_Subscribe) SizeVT() (n int) {
+func (m *EventsRequest_Subscribe) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2595,7 +2595,7 @@ func (m *ConsumeRequest_Subscribe) SizeVT() (n int) {
 	return n
 }
 
-func (m *ConsumeRequest_Ack) SizeVT() (n int) {
+func (m *EventsRequest_Ack) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2612,7 +2612,7 @@ func (m *ConsumeRequest_Ack) SizeVT() (n int) {
 	return n
 }
 
-func (m *ConsumeRequest_Reject) SizeVT() (n int) {
+func (m *EventsRequest_Reject) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2642,7 +2642,7 @@ func (m *ConsumeRequest_Reject) SizeVT() (n int) {
 	return n
 }
 
-func (m *ConsumeRequest_Ping) SizeVT() (n int) {
+func (m *EventsRequest_Ping) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2659,7 +2659,7 @@ func (m *ConsumeRequest_Ping) SizeVT() (n int) {
 	return n
 }
 
-func (m *ConsumeRequest) SizeVT() (n int) {
+func (m *EventsRequest) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2672,7 +2672,7 @@ func (m *ConsumeRequest) SizeVT() (n int) {
 	return n
 }
 
-func (m *ConsumeRequest_Subscribe_) SizeVT() (n int) {
+func (m *EventsRequest_Subscribe_) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2684,7 +2684,7 @@ func (m *ConsumeRequest_Subscribe_) SizeVT() (n int) {
 	}
 	return n
 }
-func (m *ConsumeRequest_Ack_) SizeVT() (n int) {
+func (m *EventsRequest_Ack_) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2696,7 +2696,7 @@ func (m *ConsumeRequest_Ack_) SizeVT() (n int) {
 	}
 	return n
 }
-func (m *ConsumeRequest_Reject_) SizeVT() (n int) {
+func (m *EventsRequest_Reject_) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2708,7 +2708,7 @@ func (m *ConsumeRequest_Reject_) SizeVT() (n int) {
 	}
 	return n
 }
-func (m *ConsumeRequest_Ping_) SizeVT() (n int) {
+func (m *EventsRequest_Ping_) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2720,7 +2720,7 @@ func (m *ConsumeRequest_Ping_) SizeVT() (n int) {
 	}
 	return n
 }
-func (m *ConsumeResponse_Subscribed) SizeVT() (n int) {
+func (m *EventsResponse_Subscribed) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2740,7 +2740,7 @@ func (m *ConsumeResponse_Subscribed) SizeVT() (n int) {
 	return n
 }
 
-func (m *ConsumeResponse_AckConfirmation) SizeVT() (n int) {
+func (m *EventsResponse_AckConfirmation) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2771,7 +2771,7 @@ func (m *ConsumeResponse_AckConfirmation) SizeVT() (n int) {
 	return n
 }
 
-func (m *ConsumeResponse_RejectConfirmation) SizeVT() (n int) {
+func (m *EventsResponse_RejectConfirmation) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2802,7 +2802,7 @@ func (m *ConsumeResponse_RejectConfirmation) SizeVT() (n int) {
 	return n
 }
 
-func (m *ConsumeResponse_PingConfirmation) SizeVT() (n int) {
+func (m *EventsResponse_PingConfirmation) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2833,7 +2833,7 @@ func (m *ConsumeResponse_PingConfirmation) SizeVT() (n int) {
 	return n
 }
 
-func (m *ConsumeResponse) SizeVT() (n int) {
+func (m *EventsResponse) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2846,7 +2846,7 @@ func (m *ConsumeResponse) SizeVT() (n int) {
 	return n
 }
 
-func (m *ConsumeResponse_Event) SizeVT() (n int) {
+func (m *EventsResponse_Event) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2858,7 +2858,7 @@ func (m *ConsumeResponse_Event) SizeVT() (n int) {
 	}
 	return n
 }
-func (m *ConsumeResponse_Subscribed_) SizeVT() (n int) {
+func (m *EventsResponse_Subscribed_) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2870,7 +2870,7 @@ func (m *ConsumeResponse_Subscribed_) SizeVT() (n int) {
 	}
 	return n
 }
-func (m *ConsumeResponse_AckConfirmation_) SizeVT() (n int) {
+func (m *EventsResponse_AckConfirmation_) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2882,7 +2882,7 @@ func (m *ConsumeResponse_AckConfirmation_) SizeVT() (n int) {
 	}
 	return n
 }
-func (m *ConsumeResponse_RejectConfirmation_) SizeVT() (n int) {
+func (m *EventsResponse_RejectConfirmation_) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -2894,7 +2894,7 @@ func (m *ConsumeResponse_RejectConfirmation_) SizeVT() (n int) {
 	}
 	return n
 }
-func (m *ConsumeResponse_PingConfirmation_) SizeVT() (n int) {
+func (m *EventsResponse_PingConfirmation_) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -3375,7 +3375,7 @@ func (m *EnsureStreamRequest_StreamSource) UnmarshalVT(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Pointer", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field From", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -3402,10 +3402,10 @@ func (m *EnsureStreamRequest_StreamSource) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Pointer == nil {
-				m.Pointer = &StreamPointer{}
+			if m.From == nil {
+				m.From = &StreamPointer{}
 			}
-			if err := m.Pointer.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.From.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -4160,7 +4160,7 @@ func (m *EnsureConsumerRequest) UnmarshalVT(dAtA []byte) error {
 			iNdEx = postIndex
 		case 4:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Pointer", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field From", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -4187,10 +4187,10 @@ func (m *EnsureConsumerRequest) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Pointer == nil {
-				m.Pointer = &StreamPointer{}
+			if m.From == nil {
+				m.From = &StreamPointer{}
 			}
-			if err := m.Pointer.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.From.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -4803,7 +4803,7 @@ func (m *PublishEventResponse) UnmarshalVT(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ConsumeRequest_Subscribe) UnmarshalVT(dAtA []byte) error {
+func (m *EventsRequest_Subscribe) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -4826,10 +4826,10 @@ func (m *ConsumeRequest_Subscribe) UnmarshalVT(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ConsumeRequest_Subscribe: wiretype end group for non-group")
+			return fmt.Errorf("proto: EventsRequest_Subscribe: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ConsumeRequest_Subscribe: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: EventsRequest_Subscribe: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -4938,7 +4938,7 @@ func (m *ConsumeRequest_Subscribe) UnmarshalVT(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ConsumeRequest_Ack) UnmarshalVT(dAtA []byte) error {
+func (m *EventsRequest_Ack) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -4961,10 +4961,10 @@ func (m *ConsumeRequest_Ack) UnmarshalVT(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ConsumeRequest_Ack: wiretype end group for non-group")
+			return fmt.Errorf("proto: EventsRequest_Ack: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ConsumeRequest_Ack: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: EventsRequest_Ack: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -5065,7 +5065,7 @@ func (m *ConsumeRequest_Ack) UnmarshalVT(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ConsumeRequest_Reject) UnmarshalVT(dAtA []byte) error {
+func (m *EventsRequest_Reject) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -5088,10 +5088,10 @@ func (m *ConsumeRequest_Reject) UnmarshalVT(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ConsumeRequest_Reject: wiretype end group for non-group")
+			return fmt.Errorf("proto: EventsRequest_Reject: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ConsumeRequest_Reject: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: EventsRequest_Reject: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -5257,7 +5257,7 @@ func (m *ConsumeRequest_Reject) UnmarshalVT(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ConsumeRequest_Ping) UnmarshalVT(dAtA []byte) error {
+func (m *EventsRequest_Ping) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -5280,10 +5280,10 @@ func (m *ConsumeRequest_Ping) UnmarshalVT(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ConsumeRequest_Ping: wiretype end group for non-group")
+			return fmt.Errorf("proto: EventsRequest_Ping: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ConsumeRequest_Ping: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: EventsRequest_Ping: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -5384,7 +5384,7 @@ func (m *ConsumeRequest_Ping) UnmarshalVT(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ConsumeRequest) UnmarshalVT(dAtA []byte) error {
+func (m *EventsRequest) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -5407,10 +5407,10 @@ func (m *ConsumeRequest) UnmarshalVT(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ConsumeRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: EventsRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ConsumeRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: EventsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -5442,16 +5442,16 @@ func (m *ConsumeRequest) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if oneof, ok := m.Request.(*ConsumeRequest_Subscribe_); ok {
+			if oneof, ok := m.Request.(*EventsRequest_Subscribe_); ok {
 				if err := oneof.Subscribe.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
 			} else {
-				v := &ConsumeRequest_Subscribe{}
+				v := &EventsRequest_Subscribe{}
 				if err := v.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
-				m.Request = &ConsumeRequest_Subscribe_{Subscribe: v}
+				m.Request = &EventsRequest_Subscribe_{Subscribe: v}
 			}
 			iNdEx = postIndex
 		case 2:
@@ -5483,16 +5483,16 @@ func (m *ConsumeRequest) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if oneof, ok := m.Request.(*ConsumeRequest_Ack_); ok {
+			if oneof, ok := m.Request.(*EventsRequest_Ack_); ok {
 				if err := oneof.Ack.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
 			} else {
-				v := &ConsumeRequest_Ack{}
+				v := &EventsRequest_Ack{}
 				if err := v.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
-				m.Request = &ConsumeRequest_Ack_{Ack: v}
+				m.Request = &EventsRequest_Ack_{Ack: v}
 			}
 			iNdEx = postIndex
 		case 3:
@@ -5524,16 +5524,16 @@ func (m *ConsumeRequest) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if oneof, ok := m.Request.(*ConsumeRequest_Reject_); ok {
+			if oneof, ok := m.Request.(*EventsRequest_Reject_); ok {
 				if err := oneof.Reject.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
 			} else {
-				v := &ConsumeRequest_Reject{}
+				v := &EventsRequest_Reject{}
 				if err := v.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
-				m.Request = &ConsumeRequest_Reject_{Reject: v}
+				m.Request = &EventsRequest_Reject_{Reject: v}
 			}
 			iNdEx = postIndex
 		case 4:
@@ -5565,16 +5565,16 @@ func (m *ConsumeRequest) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if oneof, ok := m.Request.(*ConsumeRequest_Ping_); ok {
+			if oneof, ok := m.Request.(*EventsRequest_Ping_); ok {
 				if err := oneof.Ping.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
 			} else {
-				v := &ConsumeRequest_Ping{}
+				v := &EventsRequest_Ping{}
 				if err := v.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
-				m.Request = &ConsumeRequest_Ping_{Ping: v}
+				m.Request = &EventsRequest_Ping_{Ping: v}
 			}
 			iNdEx = postIndex
 		default:
@@ -5599,7 +5599,7 @@ func (m *ConsumeRequest) UnmarshalVT(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ConsumeResponse_Subscribed) UnmarshalVT(dAtA []byte) error {
+func (m *EventsResponse_Subscribed) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -5622,10 +5622,10 @@ func (m *ConsumeResponse_Subscribed) UnmarshalVT(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ConsumeResponse_Subscribed: wiretype end group for non-group")
+			return fmt.Errorf("proto: EventsResponse_Subscribed: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ConsumeResponse_Subscribed: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: EventsResponse_Subscribed: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -5694,7 +5694,7 @@ func (m *ConsumeResponse_Subscribed) UnmarshalVT(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ConsumeResponse_AckConfirmation) UnmarshalVT(dAtA []byte) error {
+func (m *EventsResponse_AckConfirmation) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -5717,10 +5717,10 @@ func (m *ConsumeResponse_AckConfirmation) UnmarshalVT(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ConsumeResponse_AckConfirmation: wiretype end group for non-group")
+			return fmt.Errorf("proto: EventsResponse_AckConfirmation: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ConsumeResponse_AckConfirmation: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: EventsResponse_AckConfirmation: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -5973,7 +5973,7 @@ func (m *ConsumeResponse_AckConfirmation) UnmarshalVT(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ConsumeResponse_RejectConfirmation) UnmarshalVT(dAtA []byte) error {
+func (m *EventsResponse_RejectConfirmation) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -5996,10 +5996,10 @@ func (m *ConsumeResponse_RejectConfirmation) UnmarshalVT(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ConsumeResponse_RejectConfirmation: wiretype end group for non-group")
+			return fmt.Errorf("proto: EventsResponse_RejectConfirmation: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ConsumeResponse_RejectConfirmation: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: EventsResponse_RejectConfirmation: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -6252,7 +6252,7 @@ func (m *ConsumeResponse_RejectConfirmation) UnmarshalVT(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ConsumeResponse_PingConfirmation) UnmarshalVT(dAtA []byte) error {
+func (m *EventsResponse_PingConfirmation) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -6275,10 +6275,10 @@ func (m *ConsumeResponse_PingConfirmation) UnmarshalVT(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ConsumeResponse_PingConfirmation: wiretype end group for non-group")
+			return fmt.Errorf("proto: EventsResponse_PingConfirmation: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ConsumeResponse_PingConfirmation: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: EventsResponse_PingConfirmation: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -6531,7 +6531,7 @@ func (m *ConsumeResponse_PingConfirmation) UnmarshalVT(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ConsumeResponse) UnmarshalVT(dAtA []byte) error {
+func (m *EventsResponse) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -6554,10 +6554,10 @@ func (m *ConsumeResponse) UnmarshalVT(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ConsumeResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: EventsResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ConsumeResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: EventsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -6589,7 +6589,7 @@ func (m *ConsumeResponse) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if oneof, ok := m.Response.(*ConsumeResponse_Event); ok {
+			if oneof, ok := m.Response.(*EventsResponse_Event); ok {
 				if err := oneof.Event.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
@@ -6598,7 +6598,7 @@ func (m *ConsumeResponse) UnmarshalVT(dAtA []byte) error {
 				if err := v.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
-				m.Response = &ConsumeResponse_Event{Event: v}
+				m.Response = &EventsResponse_Event{Event: v}
 			}
 			iNdEx = postIndex
 		case 2:
@@ -6630,16 +6630,16 @@ func (m *ConsumeResponse) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if oneof, ok := m.Response.(*ConsumeResponse_Subscribed_); ok {
+			if oneof, ok := m.Response.(*EventsResponse_Subscribed_); ok {
 				if err := oneof.Subscribed.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
 			} else {
-				v := &ConsumeResponse_Subscribed{}
+				v := &EventsResponse_Subscribed{}
 				if err := v.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
-				m.Response = &ConsumeResponse_Subscribed_{Subscribed: v}
+				m.Response = &EventsResponse_Subscribed_{Subscribed: v}
 			}
 			iNdEx = postIndex
 		case 3:
@@ -6671,16 +6671,16 @@ func (m *ConsumeResponse) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if oneof, ok := m.Response.(*ConsumeResponse_AckConfirmation_); ok {
+			if oneof, ok := m.Response.(*EventsResponse_AckConfirmation_); ok {
 				if err := oneof.AckConfirmation.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
 			} else {
-				v := &ConsumeResponse_AckConfirmation{}
+				v := &EventsResponse_AckConfirmation{}
 				if err := v.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
-				m.Response = &ConsumeResponse_AckConfirmation_{AckConfirmation: v}
+				m.Response = &EventsResponse_AckConfirmation_{AckConfirmation: v}
 			}
 			iNdEx = postIndex
 		case 4:
@@ -6712,16 +6712,16 @@ func (m *ConsumeResponse) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if oneof, ok := m.Response.(*ConsumeResponse_RejectConfirmation_); ok {
+			if oneof, ok := m.Response.(*EventsResponse_RejectConfirmation_); ok {
 				if err := oneof.RejectConfirmation.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
 			} else {
-				v := &ConsumeResponse_RejectConfirmation{}
+				v := &EventsResponse_RejectConfirmation{}
 				if err := v.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
-				m.Response = &ConsumeResponse_RejectConfirmation_{RejectConfirmation: v}
+				m.Response = &EventsResponse_RejectConfirmation_{RejectConfirmation: v}
 			}
 			iNdEx = postIndex
 		case 5:
@@ -6753,16 +6753,16 @@ func (m *ConsumeResponse) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if oneof, ok := m.Response.(*ConsumeResponse_PingConfirmation_); ok {
+			if oneof, ok := m.Response.(*EventsResponse_PingConfirmation_); ok {
 				if err := oneof.PingConfirmation.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
 			} else {
-				v := &ConsumeResponse_PingConfirmation{}
+				v := &EventsResponse_PingConfirmation{}
 				if err := v.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 					return err
 				}
-				m.Response = &ConsumeResponse_PingConfirmation_{PingConfirmation: v}
+				m.Response = &EventsResponse_PingConfirmation_{PingConfirmation: v}
 			}
 			iNdEx = postIndex
 		default:
