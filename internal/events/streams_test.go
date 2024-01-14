@@ -475,7 +475,7 @@ var _ = Describe("Streams", func() {
 				})
 				Expect(err).ToNot(HaveOccurred())
 
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(200 * time.Millisecond)
 
 				// Verify that the mirror stream has the message
 				stream, err := js.Stream(ctx, "test-mirror")
@@ -509,7 +509,7 @@ var _ = Describe("Streams", func() {
 				})
 				Expect(err).ToNot(HaveOccurred())
 
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(200 * time.Millisecond)
 
 				// Verify that the mirror stream has the message
 				stream, err := js.Stream(ctx, "test-mirror")
@@ -573,7 +573,7 @@ var _ = Describe("Streams", func() {
 				})
 				Expect(err).ToNot(HaveOccurred())
 
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(200 * time.Millisecond)
 
 				// Verify that the mirror stream has the message
 				stream, err := js.Stream(ctx, "test-mirror")
@@ -637,7 +637,7 @@ var _ = Describe("Streams", func() {
 				})
 				Expect(err).ToNot(HaveOccurred())
 
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(200 * time.Millisecond)
 
 				// Verify that the mirror stream does not hav the message
 				stream, err := js.Stream(ctx, "test-mirror")
