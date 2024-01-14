@@ -9,6 +9,8 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -48,7 +50,14 @@ func (s *StateServiceServer) EnsureStore(ctx context.Context, req *statev1alpha1
 	err := s.state.EnsureStore(ctx, &state.StoreConfig{
 		Name: req.Store,
 	})
-	if err != nil {
+
+	if errors.Is(err, context.Canceled) {
+		return nil, status.Error(codes.Canceled, "context canceled")
+	} else if errors.Is(err, context.DeadlineExceeded) {
+		return nil, status.Error(codes.DeadlineExceeded, "timed out")
+	} else if state.IsValidationError(err) {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -62,6 +71,12 @@ func (s *StateServiceServer) Get(ctx context.Context, req *statev1alpha1.GetRequ
 		return &statev1alpha1.GetResponse{
 			Revision: 0,
 		}, nil
+	} else if errors.Is(err, context.Canceled) {
+		return nil, status.Error(codes.Canceled, "context canceled")
+	} else if errors.Is(err, context.DeadlineExceeded) {
+		return nil, status.Error(codes.DeadlineExceeded, "timed out")
+	} else if state.IsValidationError(err) {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	} else if err != nil {
 		return nil, err
 	}
@@ -84,7 +99,13 @@ func (s *StateServiceServer) Set(ctx context.Context, req *statev1alpha1.SetRequ
 		revision, err = s.state.Set(ctx, req.Store, req.Key, req.Value)
 	}
 
-	if err != nil {
+	if errors.Is(err, context.Canceled) {
+		return nil, status.Error(codes.Canceled, "context canceled")
+	} else if errors.Is(err, context.DeadlineExceeded) {
+		return nil, status.Error(codes.DeadlineExceeded, "timed out")
+	} else if state.IsValidationError(err) {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -100,7 +121,14 @@ func (s *StateServiceServer) Delete(ctx context.Context, req *statev1alpha1.Dele
 	} else {
 		err = s.state.Delete(ctx, req.Store, req.Key)
 	}
-	if err != nil {
+
+	if errors.Is(err, context.Canceled) {
+		return nil, status.Error(codes.Canceled, "context canceled")
+	} else if errors.Is(err, context.DeadlineExceeded) {
+		return nil, status.Error(codes.DeadlineExceeded, "timed out")
+	} else if state.IsValidationError(err) {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	} else if err != nil {
 		return nil, err
 	}
 

@@ -2,7 +2,6 @@ package state
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -82,13 +81,12 @@ func (m *Manager) EnsureStore(ctx context.Context, config *StoreConfig) error {
 	)
 	defer span.End()
 
-	storeName := strings.TrimSpace(config.Name)
-	if storeName == "" {
-		span.SetStatus(codes.Error, "store required")
-		return errors.WithStack(ErrStoreRequired)
+	if !IsValidStoreName(config.Name) {
+		span.SetStatus(codes.Error, "invalid store name")
+		return newValidationError("invalid store name: " + config.Name)
 	}
 
-	_, err := m.stores.Get(ctx, storeName)
+	_, err := m.stores.Get(ctx, config.Name)
 	if errors.Is(err, ErrStoreNotFound) {
 		_, err = m.js.CreateKeyValue(ctx, jetstream.KeyValueConfig{
 			Bucket: config.Name,
@@ -124,17 +122,10 @@ func (m *Manager) Get(ctx context.Context, store string, key string) (*Entry, er
 	)
 	defer span.End()
 
-	store = strings.TrimSpace(store)
-	key = strings.TrimSpace(key)
-
-	if store == "" {
-		span.SetStatus(codes.Error, "store required")
-		return nil, errors.WithStack(ErrStoreRequired)
-	}
-
-	if key == "" {
-		span.SetStatus(codes.Error, "key required")
-		return nil, errors.WithStack(ErrKeyRequired)
+	err := validatePreconditions(store, key)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
 
 	bucket, err := m.stores.Get(ctx, store)
@@ -187,17 +178,10 @@ func (m *Manager) Create(ctx context.Context, store string, key string, value *a
 	)
 	defer span.End()
 
-	store = strings.TrimSpace(store)
-	key = strings.TrimSpace(key)
-
-	if store == "" {
-		span.SetStatus(codes.Error, "store required")
-		return 0, errors.WithStack(ErrStoreRequired)
-	}
-
-	if key == "" {
-		span.SetStatus(codes.Error, "key required")
-		return 0, errors.WithStack(ErrKeyRequired)
+	err := validatePreconditions(store, key)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return 0, err
 	}
 
 	bucket, err := m.stores.Get(ctx, store)
@@ -244,6 +228,12 @@ func (m *Manager) Set(ctx context.Context, store string, key string, value *anyp
 	)
 	defer span.End()
 
+	err := validatePreconditions(store, key)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return 0, err
+	}
+
 	bucket, err := m.stores.Get(ctx, store)
 	if err != nil {
 		span.RecordError(err)
@@ -285,6 +275,12 @@ func (m *Manager) Update(ctx context.Context, store string, key string, value *a
 		),
 	)
 	defer span.End()
+
+	err := validatePreconditions(store, key)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return 0, err
+	}
 
 	bucket, err := m.stores.Get(ctx, store)
 	if err != nil {
@@ -339,6 +335,12 @@ func (m *Manager) Delete(ctx context.Context, store string, key string) error {
 	)
 	defer span.End()
 
+	err := validatePreconditions(store, key)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
 	bucket, err := m.stores.Get(ctx, store)
 	if err != nil {
 		span.RecordError(err)
@@ -373,6 +375,12 @@ func (m *Manager) DeleteWithRevision(ctx context.Context, store string, key stri
 	)
 	defer span.End()
 
+	err := validatePreconditions(store, key)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
 	bucket, err := m.stores.Get(ctx, store)
 	if err != nil {
 		span.RecordError(err)
@@ -388,5 +396,16 @@ func (m *Manager) DeleteWithRevision(ctx context.Context, store string, key stri
 	}
 
 	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+func validatePreconditions(store string, key string) error {
+	if !IsValidStoreName(store) {
+		return newValidationError("invalid store name: " + store)
+	}
+
+	if !IsValidKey(key) {
+		return newValidationError("invalid key: " + key)
+	}
 	return nil
 }
