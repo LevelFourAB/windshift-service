@@ -108,10 +108,11 @@ func (e *EventsServiceServer) Events(server eventsv1alpha1.EventsService_EventsS
 			err = server.Send(&eventsv1alpha1.EventsResponse{
 				Response: &eventsv1alpha1.EventsResponse_Event{
 					Event: &eventsv1alpha1.Event{
-						Id:      event.StreamSeq,
-						Data:    event.Data,
-						Subject: event.Subject,
-						Headers: headers,
+						Id:              event.StreamSeq,
+						Data:            event.Data,
+						Subject:         event.Subject,
+						Headers:         headers,
+						DeliveryAttempt: event.DeliveryAttempt,
 					},
 				},
 			})

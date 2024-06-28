@@ -22,15 +22,17 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// *
 // EnsureStoreRequest creates or updates a state store.
 type EnsureStoreRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// *
-	// The name of the store to create or update.
+	// The name of the store to create or update. Store names are case-sensitive
+	// and should only contain the following characters:
+	//
+	// - `a` to `z`, `A` to `Z` and `0` to `9` are allowed.
+	// - `_` and `-` are allowed for separating words.
 	Store string `protobuf:"bytes,1,opt,name=store,proto3" json:"store,omitempty"`
 }
 
@@ -111,17 +113,14 @@ func (*EnsureStoreResponse) Descriptor() ([]byte, []int) {
 	return file_windshift_state_v1alpha1_service_proto_rawDescGZIP(), []int{1}
 }
 
-// *
 // GetRequest is the message sent to retrieve a value from a store.
 type GetRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// *
 	// Store to retrieve the value from.
 	Store string `protobuf:"bytes,1,opt,name=store,proto3" json:"store,omitempty"`
-	// *
 	// Key to retrieve the value for.
 	Key string `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
 }
@@ -172,7 +171,6 @@ func (x *GetRequest) GetKey() string {
 	return ""
 }
 
-// *
 // GetResponse is the message returned when retrieving a value from a store.
 type GetResponse struct {
 	state         protoimpl.MessageState
@@ -248,20 +246,21 @@ type SetRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// *
 	// Store to set the value in.
 	Store string `protobuf:"bytes,1,opt,name=store,proto3" json:"store,omitempty"`
-	// *
-	// Key to set the value for.
+	// Key to set the value for. Keys are case-sensitive and should only contain
+	// the following characters:
+	//
+	//   - `a` to `z`, `A` to `Z` and `0` to `9` are allowed.
+	//   - `_` and `-` are allowed for separating words, but the use of camelCase
+	//     is recommended.
+	//   - `.` is allowed and used a hierarchy separator.
 	Key string `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
-	// *
 	// Value to set.
 	Value *anypb.Any `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
-	// *
 	// If set the operation will only succeed if the key does not already
 	// exist in the store.
 	CreateOnly *bool `protobuf:"varint,4,opt,name=create_only,json=createOnly,proto3,oneof" json:"create_only,omitempty"`
-	// *
 	// If set the operation will only succeed if the current revision of the
 	// key matches the given revision.
 	LastRevision *uint64 `protobuf:"varint,5,opt,name=last_revision,json=lastRevision,proto3,oneof" json:"last_revision,omitempty"`
@@ -339,7 +338,6 @@ type SetResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// *
 	// The revision of the key.
 	Revision uint64 `protobuf:"varint,1,opt,name=revision,proto3" json:"revision,omitempty"`
 }
@@ -388,13 +386,10 @@ type DeleteRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// *
 	// Store to delete the key from.
 	Store string `protobuf:"bytes,1,opt,name=store,proto3" json:"store,omitempty"`
-	// *
 	// Key to delete.
 	Key string `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
-	// *
 	// If set the operation will only succeed if the current revision of the
 	// key matches the given revision.
 	LastRevision *uint64 `protobuf:"varint,3,opt,name=last_revision,json=lastRevision,proto3,oneof" json:"last_revision,omitempty"`

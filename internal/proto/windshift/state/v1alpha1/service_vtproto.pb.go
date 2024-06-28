@@ -34,17 +34,16 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type StateServiceClient interface {
-	// *
 	// EnsureStore ensures that a store exists. If the store does not exist, it
 	// will be created.
+	//
+	// Stores are used to collect related data. For example, a store could be
+	// used to store the state of a single application.
 	EnsureStore(ctx context.Context, in *EnsureStoreRequest, opts ...grpc.CallOption) (*EnsureStoreResponse, error)
-	// *
 	// Get retrieves the value of a key in a store.
 	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
-	// *
 	// Set sets the value of a key in a store.
 	Set(ctx context.Context, in *SetRequest, opts ...grpc.CallOption) (*SetResponse, error)
-	// *
 	// Delete deletes a key from a store.
 	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error)
 }
@@ -97,17 +96,16 @@ func (c *stateServiceClient) Delete(ctx context.Context, in *DeleteRequest, opts
 // All implementations must embed UnimplementedStateServiceServer
 // for forward compatibility
 type StateServiceServer interface {
-	// *
 	// EnsureStore ensures that a store exists. If the store does not exist, it
 	// will be created.
+	//
+	// Stores are used to collect related data. For example, a store could be
+	// used to store the state of a single application.
 	EnsureStore(context.Context, *EnsureStoreRequest) (*EnsureStoreResponse, error)
-	// *
 	// Get retrieves the value of a key in a store.
 	Get(context.Context, *GetRequest) (*GetResponse, error)
-	// *
 	// Set sets the value of a key in a store.
 	Set(context.Context, *SetRequest) (*SetResponse, error)
-	// *
 	// Delete deletes a key from a store.
 	Delete(context.Context, *DeleteRequest) (*DeleteResponse, error)
 	mustEmbedUnimplementedStateServiceServer()
