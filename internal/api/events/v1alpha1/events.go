@@ -151,8 +151,8 @@ func (e *EventsServiceServer) handleAck(
 ) error {
 	ids := r.Ack.Ids
 
-	processedIds := make([]uint64, 0, len(ids))
-	invalidIds := make([]uint64, 0, len(ids))
+	processedIDs := make([]uint64, 0, len(ids))
+	invalidIDs := make([]uint64, 0, len(ids))
 	temporaryErrors := make([]uint64, 0, len(ids))
 	for _, id := range ids {
 		event := eventMap.Get(id)
@@ -160,26 +160,26 @@ func (e *EventsServiceServer) handleAck(
 			err := event.Ack()
 			if err != nil {
 				if errors.Is(err, nats.ErrInvalidJSAck) || errors.Is(err, nats.ErrMsgAlreadyAckd) {
-					invalidIds = append(invalidIds, id)
+					invalidIDs = append(invalidIDs, id)
 					eventMap.Remove(id)
 				} else {
 					e.logger.Warn("Could not reject event", zap.Error(err))
 					temporaryErrors = append(temporaryErrors, id)
 				}
 			} else {
-				processedIds = append(processedIds, id)
+				processedIDs = append(processedIDs, id)
 				eventMap.Remove(id)
 			}
 		} else {
-			invalidIds = append(invalidIds, id)
+			invalidIDs = append(invalidIDs, id)
 		}
 	}
 
 	err := server.Send(&eventsv1alpha1.EventsResponse{
 		Response: &eventsv1alpha1.EventsResponse_AckConfirmation_{
 			AckConfirmation: &eventsv1alpha1.EventsResponse_AckConfirmation{
-				Ids:                processedIds,
-				InvalidIds:         invalidIds,
+				Ids:                processedIDs,
+				InvalidIds:         invalidIDs,
 				TemporaryFailedIds: temporaryErrors,
 			},
 		},
@@ -200,8 +200,8 @@ func (e *EventsServiceServer) handleReject(
 	permanently := r.Reject.Permanently
 	delay := r.Reject.Delay
 
-	processedIds := make([]uint64, 0, len(ids))
-	invalidIds := make([]uint64, 0, len(ids))
+	processedIDs := make([]uint64, 0, len(ids))
+	invalidIDs := make([]uint64, 0, len(ids))
 	temporaryErrors := make([]uint64, 0, len(ids))
 	for _, id := range ids {
 		event := eventMap.Get(id)
@@ -218,25 +218,25 @@ func (e *EventsServiceServer) handleReject(
 			if err != nil {
 				e.logger.Warn("Could not reject event", zap.Error(err))
 				if errors.Is(err, nats.ErrInvalidJSAck) || errors.Is(err, nats.ErrMsgAlreadyAckd) {
-					invalidIds = append(invalidIds, id)
+					invalidIDs = append(invalidIDs, id)
 					eventMap.Remove(id)
 				} else {
 					temporaryErrors = append(temporaryErrors, id)
 				}
 			} else {
-				processedIds = append(processedIds, id)
+				processedIDs = append(processedIDs, id)
 				eventMap.Remove(id)
 			}
 		} else {
-			invalidIds = append(invalidIds, id)
+			invalidIDs = append(invalidIDs, id)
 		}
 	}
 
 	err := server.Send(&eventsv1alpha1.EventsResponse{
 		Response: &eventsv1alpha1.EventsResponse_RejectConfirmation_{
 			RejectConfirmation: &eventsv1alpha1.EventsResponse_RejectConfirmation{
-				Ids:                processedIds,
-				InvalidIds:         invalidIds,
+				Ids:                processedIDs,
+				InvalidIds:         invalidIDs,
 				TemporaryFailedIds: temporaryErrors,
 			},
 		},
@@ -255,8 +255,8 @@ func (e *EventsServiceServer) handlePing(
 ) error {
 	ids := r.Ping.Ids
 
-	processedIds := make([]uint64, 0, len(ids))
-	invalidIds := make([]uint64, 0, len(ids))
+	processedIDs := make([]uint64, 0, len(ids))
+	invalidIDs := make([]uint64, 0, len(ids))
 	temporaryErrors := make([]uint64, 0, len(ids))
 	for _, id := range ids {
 		event := eventMap.Get(id)
@@ -265,24 +265,24 @@ func (e *EventsServiceServer) handlePing(
 			if err != nil {
 				e.logger.Warn("Could not ping event", zap.Error(err))
 				if errors.Is(err, nats.ErrInvalidMsg) {
-					invalidIds = append(invalidIds, id)
+					invalidIDs = append(invalidIDs, id)
 				} else {
 					temporaryErrors = append(temporaryErrors, id)
 				}
 			} else {
-				processedIds = append(processedIds, id)
+				processedIDs = append(processedIDs, id)
 				eventMap.MarkPinged(id)
 			}
 		} else {
-			invalidIds = append(invalidIds, id)
+			invalidIDs = append(invalidIDs, id)
 		}
 	}
 
 	err := server.Send(&eventsv1alpha1.EventsResponse{
 		Response: &eventsv1alpha1.EventsResponse_PingConfirmation_{
 			PingConfirmation: &eventsv1alpha1.EventsResponse_PingConfirmation{
-				Ids:                processedIds,
-				InvalidIds:         invalidIds,
+				Ids:                processedIDs,
+				InvalidIds:         invalidIDs,
 				TemporaryFailedIds: temporaryErrors,
 			},
 		},

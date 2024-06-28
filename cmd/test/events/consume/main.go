@@ -107,7 +107,7 @@ func main() {
 		}
 	}()
 
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	r := rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec
 
 	pending := atomic.Int32{}
 	processing := atomic.Int32{}
