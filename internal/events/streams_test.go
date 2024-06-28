@@ -269,12 +269,19 @@ var _ = Describe("Streams", func() {
 				})
 				Expect(err).ToNot(HaveOccurred())
 
-				time.Sleep(200 * time.Millisecond)
-
-				// Verify that the mirror stream has no messages
 				stream, err := js.Stream(ctx, "test-mirror")
 				Expect(err).ToNot(HaveOccurred())
-				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
+
+				for i := 0; i < 10; i++ {
+					time.Sleep(100 * time.Millisecond)
+					info, err := stream.Info(ctx)
+					Expect(err).ToNot(HaveOccurred())
+					if info.State.Msgs == 1 {
+						return
+					}
+				}
+
+				Fail("Did not receive message on secondary stream")
 			})
 
 			It("a mirror of a stream copies new data", func(ctx context.Context) {
@@ -303,12 +310,19 @@ var _ = Describe("Streams", func() {
 				})
 				Expect(err).ToNot(HaveOccurred())
 
-				time.Sleep(200 * time.Millisecond)
-
-				// Verify that the mirror stream has the message
 				stream, err := js.Stream(ctx, "test-mirror")
 				Expect(err).ToNot(HaveOccurred())
-				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
+
+				for i := 0; i < 10; i++ {
+					time.Sleep(100 * time.Millisecond)
+					info, err := stream.Info(ctx)
+					Expect(err).ToNot(HaveOccurred())
+					if info.State.Msgs == 1 {
+						return
+					}
+				}
+
+				Fail("Did not receive message on secondary stream")
 			})
 
 			It("can create a mirror of a stream with a start time", func(ctx context.Context) {
@@ -368,12 +382,19 @@ var _ = Describe("Streams", func() {
 				})
 				Expect(err).ToNot(HaveOccurred())
 
-				time.Sleep(200 * time.Millisecond)
-
-				// Verify that the mirror stream has the message
 				stream, err := js.Stream(ctx, "test-mirror")
 				Expect(err).ToNot(HaveOccurred())
-				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
+
+				for i := 0; i < 10; i++ {
+					time.Sleep(100 * time.Millisecond)
+					info, err := stream.Info(ctx)
+					Expect(err).ToNot(HaveOccurred())
+					if info.State.Msgs == 1 {
+						return
+					}
+				}
+
+				Fail("Did not receive message on secondary stream")
 			})
 
 			It("a mirror of a stream with a start time does not copy too old data", func(ctx context.Context) {
@@ -407,7 +428,7 @@ var _ = Describe("Streams", func() {
 				})
 				Expect(err).ToNot(HaveOccurred())
 
-				time.Sleep(200 * time.Millisecond)
+				time.Sleep(500 * time.Millisecond)
 
 				// Verify that the mirror stream does not have the message
 				stream, err := js.Stream(ctx, "test-mirror")
@@ -476,12 +497,19 @@ var _ = Describe("Streams", func() {
 				})
 				Expect(err).ToNot(HaveOccurred())
 
-				time.Sleep(200 * time.Millisecond)
-
-				// Verify that the mirror stream has the message
 				stream, err := js.Stream(ctx, "test-mirror")
 				Expect(err).ToNot(HaveOccurred())
-				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
+
+				for i := 0; i < 10; i++ {
+					time.Sleep(100 * time.Millisecond)
+					info, err := stream.Info(ctx)
+					Expect(err).ToNot(HaveOccurred())
+					if info.State.Msgs == 1 {
+						return
+					}
+				}
+
+				Fail("Did not receive message on secondary stream")
 			})
 
 			It("can create a mirror of a stream with a start id and it will receive new events", func(ctx context.Context) {
@@ -510,12 +538,19 @@ var _ = Describe("Streams", func() {
 				})
 				Expect(err).ToNot(HaveOccurred())
 
-				time.Sleep(200 * time.Millisecond)
-
-				// Verify that the mirror stream has the message
 				stream, err := js.Stream(ctx, "test-mirror")
 				Expect(err).ToNot(HaveOccurred())
-				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
+
+				for i := 0; i < 10; i++ {
+					time.Sleep(100 * time.Millisecond)
+					info, err := stream.Info(ctx)
+					Expect(err).ToNot(HaveOccurred())
+					if info.State.Msgs == 1 {
+						return
+					}
+				}
+
+				Fail("Did not receive message on secondary stream")
 			})
 
 			It("can create a mirror of a stream starting at the first event", func(ctx context.Context) {
@@ -574,12 +609,19 @@ var _ = Describe("Streams", func() {
 				})
 				Expect(err).ToNot(HaveOccurred())
 
-				time.Sleep(200 * time.Millisecond)
-
-				// Verify that the mirror stream has the message
 				stream, err := js.Stream(ctx, "test-mirror")
 				Expect(err).ToNot(HaveOccurred())
-				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
+
+				for i := 0; i < 10; i++ {
+					time.Sleep(100 * time.Millisecond)
+					info, err := stream.Info(ctx)
+					Expect(err).ToNot(HaveOccurred())
+					if info.State.Msgs == 1 {
+						return
+					}
+				}
+
+				Fail("Did not receive message on secondary stream")
 			})
 
 			It("can create a mirror of a stream starting at the last event", func(ctx context.Context) {
@@ -609,7 +651,7 @@ var _ = Describe("Streams", func() {
 				Expect(stream.CachedInfo().Config.Mirror.OptStartSeq).To(Equal(uint64(0)))
 			})
 
-			It("can create a mirror of a stream starting at the last event and it will receive old data", func(ctx context.Context) {
+			It("can create a mirror of a stream starting at the last event and it will not receive old data", func(ctx context.Context) {
 				_, err := js.Stream(ctx, "test")
 				Expect(err).To(MatchError(jetstream.ErrStreamNotFound))
 
@@ -638,9 +680,9 @@ var _ = Describe("Streams", func() {
 				})
 				Expect(err).ToNot(HaveOccurred())
 
-				time.Sleep(200 * time.Millisecond)
+				time.Sleep(500 * time.Millisecond)
 
-				// Verify that the mirror stream does not hav the message
+				// Verify that the mirror stream does not have the message
 				stream, err := js.Stream(ctx, "test-mirror")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(0)))
@@ -732,11 +774,19 @@ var _ = Describe("Streams", func() {
 				})
 				Expect(err).ToNot(HaveOccurred())
 
-				time.Sleep(200 * time.Millisecond)
-
 				stream, err := js.Stream(ctx, "test2")
 				Expect(err).ToNot(HaveOccurred())
-				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
+
+				for i := 0; i < 10; i++ {
+					time.Sleep(100 * time.Millisecond)
+					info, err := stream.Info(ctx)
+					Expect(err).ToNot(HaveOccurred())
+					if info.State.Msgs == 1 {
+						return
+					}
+				}
+
+				Fail("Did not receive message on secondary stream")
 			})
 
 			It("copies new data", func(ctx context.Context) {
@@ -768,11 +818,16 @@ var _ = Describe("Streams", func() {
 				})
 				Expect(err).ToNot(HaveOccurred())
 
-				time.Sleep(200 * time.Millisecond)
+				for i := 0; i < 10; i++ {
+					time.Sleep(100 * time.Millisecond)
+					info, err := stream.Info(ctx)
+					Expect(err).ToNot(HaveOccurred())
+					if info.State.Msgs == 1 {
+						return
+					}
+				}
 
-				stream, err = js.Stream(ctx, "test2")
-				Expect(err).ToNot(HaveOccurred())
-				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
+				Fail("Did not receive message on secondary stream")
 			})
 
 			It("can copy from specific id of another stream", func(ctx context.Context) {
@@ -811,11 +866,19 @@ var _ = Describe("Streams", func() {
 				})
 				Expect(err).ToNot(HaveOccurred())
 
-				time.Sleep(200 * time.Millisecond)
-
 				stream, err := js.Stream(ctx, "test2")
 				Expect(err).ToNot(HaveOccurred())
-				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
+
+				for i := 0; i < 10; i++ {
+					time.Sleep(100 * time.Millisecond)
+					info, err := stream.Info(ctx)
+					Expect(err).ToNot(HaveOccurred())
+					if info.State.Msgs == 1 {
+						return
+					}
+				}
+
+				Fail("Did not receive message on secondary stream")
 			})
 
 			It("can copy from specific time of another stream", func(ctx context.Context) {
@@ -858,11 +921,19 @@ var _ = Describe("Streams", func() {
 				})
 				Expect(err).ToNot(HaveOccurred())
 
-				time.Sleep(200 * time.Millisecond)
-
 				stream, err := js.Stream(ctx, "test2")
 				Expect(err).ToNot(HaveOccurred())
-				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
+
+				for i := 0; i < 10; i++ {
+					time.Sleep(100 * time.Millisecond)
+					info, err := stream.Info(ctx)
+					Expect(err).ToNot(HaveOccurred())
+					if info.State.Msgs == 1 {
+						return
+					}
+				}
+
+				Fail("Did not receive message on secondary stream")
 			})
 
 			It("can copy from start of other stream", func(ctx context.Context) {
@@ -896,11 +967,19 @@ var _ = Describe("Streams", func() {
 				})
 				Expect(err).ToNot(HaveOccurred())
 
-				time.Sleep(200 * time.Millisecond)
-
 				stream, err := js.Stream(ctx, "test2")
 				Expect(err).ToNot(HaveOccurred())
-				Expect(stream.CachedInfo().State.Msgs).To(Equal(uint64(1)))
+
+				for i := 0; i < 10; i++ {
+					time.Sleep(100 * time.Millisecond)
+					info, err := stream.Info(ctx)
+					Expect(err).ToNot(HaveOccurred())
+					if info.State.Msgs == 1 {
+						return
+					}
+				}
+
+				Fail("Did not receive message on secondary stream")
 			})
 
 			It("can start at end of other stream and will not receive old data", func(ctx context.Context) {
@@ -934,7 +1013,7 @@ var _ = Describe("Streams", func() {
 				})
 				Expect(err).ToNot(HaveOccurred())
 
-				time.Sleep(200 * time.Millisecond)
+				time.Sleep(500 * time.Millisecond)
 
 				stream, err := js.Stream(ctx, "test2")
 				Expect(err).ToNot(HaveOccurred())
