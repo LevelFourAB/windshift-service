@@ -559,6 +559,7 @@ var _ = Describe("Event Consumption", func() {
 			select {
 			case event := <-ec.Incoming():
 				Expect(event).ToNot(BeNil())
+				Expect(event.DeliveryAttempt).To(BeNumerically("==", 1))
 
 				err = event.Reject()
 				Expect(err).ToNot(HaveOccurred())
@@ -569,6 +570,7 @@ var _ = Describe("Event Consumption", func() {
 			select {
 			case event := <-ec.Incoming():
 				Expect(event).ToNot(BeNil())
+				Expect(event.DeliveryAttempt).To(BeNumerically("==", 2))
 
 				err = event.Ack()
 				Expect(err).ToNot(HaveOccurred())
@@ -611,6 +613,7 @@ var _ = Describe("Event Consumption", func() {
 			select {
 			case event := <-ec.Incoming():
 				Expect(event).ToNot(BeNil())
+				Expect(event.DeliveryAttempt).To(BeNumerically("==", 1))
 
 				event.DiscardData()
 				err = event.Reject()
@@ -622,6 +625,7 @@ var _ = Describe("Event Consumption", func() {
 			select {
 			case event := <-ec.Incoming():
 				Expect(event).ToNot(BeNil())
+				Expect(event.DeliveryAttempt).To(BeNumerically("==", 2))
 
 				err = event.Ack()
 				Expect(err).ToNot(HaveOccurred())
@@ -665,6 +669,7 @@ var _ = Describe("Event Consumption", func() {
 
 			event := <-ec1.Incoming()
 			Expect(event).ToNot(BeNil())
+			Expect(event.DeliveryAttempt).To(BeNumerically("==", 1))
 			err = ec1.Close()
 			Expect(err).ToNot(HaveOccurred())
 
@@ -675,6 +680,7 @@ var _ = Describe("Event Consumption", func() {
 			select {
 			case event = <-ec2.Incoming():
 				Expect(event).ToNot(BeNil())
+				Expect(event.DeliveryAttempt).To(BeNumerically("==", 2))
 			case <-time.After(500 * time.Millisecond):
 				Fail("timeout waiting for event")
 			}
@@ -709,6 +715,7 @@ var _ = Describe("Event Consumption", func() {
 			select {
 			case event := <-ec.Incoming():
 				Expect(event).ToNot(BeNil())
+				Expect(event.DeliveryAttempt).To(BeNumerically("==", 1))
 			case <-time.After(200 * time.Millisecond):
 				Fail("no event received")
 			}
@@ -718,6 +725,7 @@ var _ = Describe("Event Consumption", func() {
 			select {
 			case event := <-ec.Incoming():
 				Expect(event).ToNot(BeNil())
+				Expect(event.DeliveryAttempt).To(BeNumerically("==", 2))
 
 				err = event.Ack()
 				Expect(err).ToNot(HaveOccurred())
@@ -758,6 +766,7 @@ var _ = Describe("Event Consumption", func() {
 
 			event := <-ec.Incoming()
 			Expect(event).ToNot(BeNil())
+			Expect(event.DeliveryAttempt).To(BeNumerically("==", 1))
 
 			start := time.Now()
 			err = event.RejectWithDelay(100 * time.Millisecond)
@@ -765,10 +774,12 @@ var _ = Describe("Event Consumption", func() {
 
 			// Receive the event again
 			select {
-			case <-ec.Incoming():
+			case event := <-ec.Incoming():
 				if time.Since(start) < 100*time.Millisecond {
 					Fail("event received too early")
 				}
+
+				Expect(event.DeliveryAttempt).To(BeNumerically("==", 2))
 			case <-time.After(200 * time.Millisecond):
 				Fail("no event received")
 			}

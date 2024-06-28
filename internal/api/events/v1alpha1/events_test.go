@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 	eventsv1alpha1 "windshift/service/internal/proto/windshift/events/v1alpha1"
+	testv1 "windshift/service/internal/proto/windshift/test/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -94,7 +95,7 @@ var _ = Describe("Events", func() {
 			// Send an event
 			_, err = service.PublishEvent(ctx, &eventsv1alpha1.PublishEventRequest{
 				Subject: "events.test",
-				Data:    Data(&emptypb.Empty{}),
+				Data:    Data(&testv1.StringValue{Value: "test"}),
 			})
 			Expect(err).ToNot(HaveOccurred())
 
@@ -104,6 +105,11 @@ var _ = Describe("Events", func() {
 			if _, ok := in.Response.(*eventsv1alpha1.EventsResponse_Event); !ok {
 				Fail("expected Event message")
 			}
+
+			e := in.GetEvent()
+			Expect(e.Subject).To(Equal("events.test"))
+			Expect(e.DeliveryAttempt).To(BeNumerically("==", 1))
+			Expect(e.Data).To(Equal(Data(&testv1.StringValue{Value: "test"})))
 		})
 	})
 
@@ -141,7 +147,7 @@ var _ = Describe("Events", func() {
 			// Send an event
 			_, err = service.PublishEvent(ctx, &eventsv1alpha1.PublishEventRequest{
 				Subject: "events.test",
-				Data:    Data(&emptypb.Empty{}),
+				Data:    Data(&testv1.StringValue{Value: "test"}),
 			})
 			Expect(err).ToNot(HaveOccurred())
 
@@ -152,7 +158,12 @@ var _ = Describe("Events", func() {
 				Fail("expected Event message")
 			}
 
-			eventID := in.GetEvent().GetId()
+			e := in.GetEvent()
+			Expect(e.Subject).To(Equal("events.test"))
+			Expect(e.DeliveryAttempt).To(BeNumerically("==", 1))
+			Expect(e.Data).To(Equal(Data(&testv1.StringValue{Value: "test"})))
+
+			eventID := e.GetId()
 
 			// Acknowledge the event
 			err = client.Send(&eventsv1alpha1.EventsRequest{
@@ -170,8 +181,7 @@ var _ = Describe("Events", func() {
 			if r, ok := in.Response.(*eventsv1alpha1.EventsResponse_AckConfirmation_); ok {
 				Expect(r.AckConfirmation.Ids).To(Equal([]uint64{eventID}))
 			} else {
-
-				Fail("expected AckConfiramtion message")
+				Fail("expected AckConfirmation message")
 			}
 		})
 
@@ -221,8 +231,7 @@ var _ = Describe("Events", func() {
 			if r, ok := in.Response.(*eventsv1alpha1.EventsResponse_AckConfirmation_); ok {
 				Expect(r.AckConfirmation.InvalidIds).To(Equal([]uint64{1}))
 			} else {
-
-				Fail("expected AckConfiramtion message")
+				Fail("expected AckConfirmation message")
 			}
 		})
 
@@ -337,7 +346,7 @@ var _ = Describe("Events", func() {
 			// Send an event
 			_, err = service.PublishEvent(ctx, &eventsv1alpha1.PublishEventRequest{
 				Subject: "events.test",
-				Data:    Data(&emptypb.Empty{}),
+				Data:    Data(&testv1.StringValue{Value: "test"}),
 			})
 			Expect(err).ToNot(HaveOccurred())
 
@@ -348,7 +357,12 @@ var _ = Describe("Events", func() {
 				Fail("expected Event message")
 			}
 
-			eventID := in.GetEvent().GetId()
+			e := in.GetEvent()
+			Expect(e.Subject).To(Equal("events.test"))
+			Expect(e.DeliveryAttempt).To(BeNumerically("==", 1))
+			Expect(e.Data).To(Equal(Data(&testv1.StringValue{Value: "test"})))
+
+			eventID := e.GetId()
 
 			// Reject the event
 			err = client.Send(&eventsv1alpha1.EventsRequest{
@@ -374,6 +388,11 @@ var _ = Describe("Events", func() {
 			if _, ok := in.Response.(*eventsv1alpha1.EventsResponse_Event); !ok {
 				Fail("expected Event message")
 			}
+
+			e = in.GetEvent()
+			Expect(e.Subject).To(Equal("events.test"))
+			Expect(e.DeliveryAttempt).To(BeNumerically("==", 2))
+			Expect(e.Data).To(Equal(Data(&testv1.StringValue{Value: "test"})))
 		})
 
 		It("rejecting unknown event fails", NodeTimeout(5*time.Second), func(ctx context.Context) {
@@ -458,7 +477,7 @@ var _ = Describe("Events", func() {
 			// Send an event
 			_, err = service.PublishEvent(ctx, &eventsv1alpha1.PublishEventRequest{
 				Subject: "events.test",
-				Data:    Data(&emptypb.Empty{}),
+				Data:    Data(&testv1.StringValue{Value: "test"}),
 			})
 			Expect(err).ToNot(HaveOccurred())
 
@@ -469,7 +488,11 @@ var _ = Describe("Events", func() {
 				Fail("expected Event message")
 			}
 
-			eventID := in.GetEvent().GetId()
+			e := in.GetEvent()
+			Expect(e.Subject).To(Equal("events.test"))
+			Expect(e.DeliveryAttempt).To(BeNumerically("==", 1))
+			Expect(e.Data).To(Equal(Data(&testv1.StringValue{Value: "test"})))
+			eventID := e.GetId()
 
 			// Reject the event
 			err = client.Send(&eventsv1alpha1.EventsRequest{

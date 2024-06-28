@@ -2115,6 +2115,11 @@ func (m *Event) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
+	if m.DeliveryAttempt != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.DeliveryAttempt))
+		i--
+		dAtA[i] = 0x28
+	}
 	if m.Data != nil {
 		if vtmsg, ok := interface{}(m.Data).(interface {
 			MarshalToSizedBufferVT([]byte) (int, error)
@@ -2990,6 +2995,9 @@ func (m *Event) SizeVT() (n int) {
 			l = proto.Size(m.Data)
 		}
 		n += 1 + l + sov(uint64(l))
+	}
+	if m.DeliveryAttempt != 0 {
+		n += 1 + sov(uint64(m.DeliveryAttempt))
 	}
 	n += len(m.unknownFields)
 	return n
@@ -7117,6 +7125,25 @@ func (m *Event) UnmarshalVT(dAtA []byte) error {
 				}
 			}
 			iNdEx = postIndex
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DeliveryAttempt", wireType)
+			}
+			m.DeliveryAttempt = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.DeliveryAttempt |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skip(dAtA[iNdEx:])

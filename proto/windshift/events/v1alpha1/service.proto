@@ -529,6 +529,9 @@ message Event {
 	// useful to support different versions of the data. Subscribers should
 	// ignore data they do not understand.
 	google.protobuf.Any data = 4;
+	// The delivery attempt this is. Starts at 1 and increases for each
+	// redelivery of the event.
+	uint64 delivery_attempt = 5;
 }
 
 message Headers {

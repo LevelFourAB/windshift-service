@@ -52,6 +52,10 @@ type Event struct {
 	// resume from there on the next run.
 	StreamSeq uint64
 
+	// DeliveryAttempt is the number of times the event has been delivered to
+	// a consumer. The first delivery is 1.
+	DeliveryAttempt uint64
+
 	// Headers contains the headers of the event.
 	Headers *Headers
 
@@ -108,16 +112,17 @@ func newEvent(
 	}
 
 	return &Event{
-		span:        span,
-		logger:      logger,
-		msg:         msg,
-		onProcess:   onProcess,
-		Context:     ctx,
-		Subject:     msg.Subject(),
-		ConsumerSeq: md.Sequence.Stream,
-		StreamSeq:   md.Sequence.Consumer,
-		Headers:     headers,
-		Data:        data,
+		span:            span,
+		logger:          logger,
+		msg:             msg,
+		onProcess:       onProcess,
+		Context:         ctx,
+		Subject:         msg.Subject(),
+		ConsumerSeq:     md.Sequence.Stream,
+		StreamSeq:       md.Sequence.Consumer,
+		DeliveryAttempt: md.NumDelivered,
+		Headers:         headers,
+		Data:            data,
 	}, nil
 }
 
