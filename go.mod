@@ -1,6 +1,6 @@
 module windshift/service
 
-go 1.20
+go 1.22
 
 require (
 	github.com/cockroachdb/errors v1.11.1
