@@ -96,9 +96,8 @@ func newClient(
 	logger *zap.Logger,
 	listener *bufconn.Listener,
 ) (*grpc.ClientConn, error) {
-	conn, err := grpc.DialContext(
-		context.Background(),
-		"",
+	conn, err := grpc.NewClient(
+		"passthrough://bufnet",
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 			return listener.Dial()
 		}),

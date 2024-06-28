@@ -22,7 +22,7 @@ func main() {
 	parallelism := flag.Int("parallelism", 1, "Number of parallel publishers")
 	flag.Parse()
 
-	conn, err := grpc.Dial("localhost:8080", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient("localhost:8080", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatal(err)
 	}
