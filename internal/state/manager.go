@@ -91,7 +91,6 @@ func (m *Manager) EnsureStore(ctx context.Context, config *StoreConfig) error {
 		_, err = m.js.CreateKeyValue(ctx, jetstream.KeyValueConfig{
 			Bucket: config.Name,
 		})
-
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "failed to create store")

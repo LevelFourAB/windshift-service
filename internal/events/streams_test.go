@@ -4,7 +4,8 @@ import (
 	"context"
 	"sync"
 	"time"
-	"windshift/service/internal/events"
+
+	"github.com/levelfourab/windshift-server/internal/events"
 
 	"github.com/nats-io/nats.go/jetstream"
 	. "github.com/onsi/ginkgo/v2"

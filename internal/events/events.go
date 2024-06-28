@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"sync/atomic"
 	"time"
-	"windshift/service/internal/events/flowcontrol"
+
+	"github.com/levelfourab/windshift-server/internal/events/flowcontrol"
 
 	"github.com/cockroachdb/errors"
 	"github.com/nats-io/nats.go/jetstream"

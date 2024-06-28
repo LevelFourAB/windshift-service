@@ -14,8 +14,7 @@ type vtMessage interface {
 
 // codec is a custom implementation of a gRPC codec. It supports both
 // protobuf and VTprotobuf messages.
-type codec struct {
-}
+type codec struct{}
 
 func (c codec) Marshal(v interface{}) ([]byte, error) {
 	if vt, ok := v.(vtMessage); ok {

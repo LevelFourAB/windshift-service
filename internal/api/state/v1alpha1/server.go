@@ -2,8 +2,9 @@ package v1alpha1
 
 import (
 	"context"
-	statev1alpha1 "windshift/service/internal/proto/windshift/state/v1alpha1"
-	"windshift/service/internal/state"
+
+	statev1alpha1 "github.com/levelfourab/windshift-server/internal/proto/windshift/state/v1alpha1"
+	"github.com/levelfourab/windshift-server/internal/state"
 
 	"github.com/cockroachdb/errors"
 	"go.opentelemetry.io/otel/propagation"

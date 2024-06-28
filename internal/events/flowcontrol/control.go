@@ -94,7 +94,7 @@ func NewFlowControl(
 // This operation will block until we are processing less events than the
 // limit.
 func (fc *FlowControl) GetBatchSize() int {
-	//fc.updateProcessingLimit()
+	// fc.updateProcessingLimit()
 	currentLimit := int(atomic.LoadInt64(&fc.currentProcessingLimit))
 	fc.tracker.WaitUntilLessThan(currentLimit)
 	return currentLimit - fc.tracker.Count()

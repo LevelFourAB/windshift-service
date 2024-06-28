@@ -3,7 +3,8 @@ package state_test
 import (
 	"os"
 	"time"
-	"windshift/service/internal/state"
+
+	"github.com/levelfourab/windshift-server/internal/state"
 
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"

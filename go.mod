@@ -1,4 +1,4 @@
-module windshift/service
+module github.com/levelfourab/windshift-server
 
 go 1.22
 

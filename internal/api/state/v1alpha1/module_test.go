@@ -5,9 +5,10 @@ import (
 	"net"
 	"os"
 	"time"
-	"windshift/service/internal/api/events/v1alpha1"
-	"windshift/service/internal/events"
-	eventsv1alpha1 "windshift/service/internal/proto/windshift/events/v1alpha1"
+
+	"github.com/levelfourab/windshift-server/internal/api/events/v1alpha1"
+	"github.com/levelfourab/windshift-server/internal/events"
+	eventsv1alpha1 "github.com/levelfourab/windshift-server/internal/proto/windshift/events/v1alpha1"
 
 	"github.com/levelfourab/sprout-go"
 	"github.com/levelfourab/sprout-go/test"

@@ -1,7 +1,7 @@
 package v1alpha1
 
 import (
-	statev1alpha1 "windshift/service/internal/proto/windshift/state/v1alpha1"
+	statev1alpha1 "github.com/levelfourab/windshift-server/internal/proto/windshift/state/v1alpha1"
 
 	"github.com/levelfourab/sprout-go"
 	"go.uber.org/fx"
