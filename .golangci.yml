@@ -13,10 +13,14 @@ issues:
         - stylecheck
       text: dot imports
       source: ginkgo
+    - linters:
+        - revive
+      text: 'unused-parameter:'
 
 linters-settings:
-  govet:
-    check-shadowing: true
+  gosec:
+    excludes:
+      - G601
   misspell:
     locale: US
 
@@ -28,6 +32,7 @@ linters:
   - dogsled
   - dupl
   - errcheck
+  - errname
   - exportloopref
   - exhaustive
   - goconst
@@ -35,15 +40,21 @@ linters:
   - gofmt
   - goimports
   - goprintffuncname
+  - gosec
   - gosimple
   - govet
   - ineffassign
   - misspell
   - nakedret
+  - makezero
+  - nilerr
+  - nilnil
   - noctx
   - nolintlint
+  - prealloc
+  - predeclared
   - revive
-  - rowserrcheck
+  - spancheck
   - staticcheck
   - typecheck
   - unconvert
