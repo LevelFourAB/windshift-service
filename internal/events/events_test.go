@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"windshift/service/internal/events"
-	testv1 "windshift/service/internal/proto/windshift/test/v1"
+	"github.com/levelfourab/windshift-server/internal/events"
+	testv1 "github.com/levelfourab/windshift-server/internal/proto/windshift/test/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

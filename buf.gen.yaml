@@ -2,7 +2,7 @@ version: "v1"
 managed:
   enabled: true
   go_package_prefix:
-    default: "windshift/service/internal/proto"
+    default: "github.com/levelfourab/windshift-server/internal/proto"
 plugins:
   # renovate: datasource=github-releases depName=protocolbuffers/protobuf-go
   - plugin: buf.build/protocolbuffers/go:v1.30.0

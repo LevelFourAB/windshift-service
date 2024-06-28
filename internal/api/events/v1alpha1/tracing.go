@@ -1,7 +1,7 @@
 package v1alpha1
 
 import (
-	eventsv1alpha1 "windshift/service/internal/proto/windshift/events/v1alpha1"
+	eventsv1alpha1 "github.com/levelfourab/windshift-server/internal/proto/windshift/events/v1alpha1"
 )
 
 // eventTracingHeaders is a wrapper around eventsv1alpha1.Headers that helps

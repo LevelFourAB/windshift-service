@@ -9,8 +9,9 @@ import (
 	"strconv"
 	"sync/atomic"
 	"time"
-	eventsv1alpha1 "windshift/service/internal/proto/windshift/events/v1alpha1"
-	testv1 "windshift/service/internal/proto/windshift/test/v1"
+
+	eventsv1alpha1 "github.com/levelfourab/windshift-server/internal/proto/windshift/events/v1alpha1"
+	testv1 "github.com/levelfourab/windshift-server/internal/proto/windshift/test/v1"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -88,7 +89,7 @@ func main() {
 					continue
 				}
 
-				//log.Println("Sent event: ", v)
+				// log.Println("Sent event: ", v)
 				processed.Add(1)
 			}
 		}()

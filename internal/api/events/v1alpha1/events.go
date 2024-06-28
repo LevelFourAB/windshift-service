@@ -2,9 +2,10 @@ package v1alpha1
 
 import (
 	"time"
-	"windshift/service/internal/events"
 
-	eventsv1alpha1 "windshift/service/internal/proto/windshift/events/v1alpha1"
+	"github.com/levelfourab/windshift-server/internal/events"
+
+	eventsv1alpha1 "github.com/levelfourab/windshift-server/internal/proto/windshift/events/v1alpha1"
 
 	"github.com/cockroachdb/errors"
 	"github.com/nats-io/nats.go"

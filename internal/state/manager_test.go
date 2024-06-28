@@ -3,7 +3,7 @@ package state_test
 import (
 	"context"
 
-	"windshift/service/internal/state"
+	"github.com/levelfourab/windshift-server/internal/state"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -12,7 +12,7 @@ import (
 
 var _ = Describe("State Store", func() {
 	var manager *state.Manager
-	//var js nats.JetStreamContext
+	// var js nats.JetStreamContext
 
 	BeforeEach(func(ctx context.Context) {
 		manager, _ = createManagerAndJetStream()

@@ -3,7 +3,8 @@ package events_test
 import (
 	"os"
 	"time"
-	"windshift/service/internal/events"
+
+	"github.com/levelfourab/windshift-server/internal/events"
 
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"

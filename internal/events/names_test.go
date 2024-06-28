@@ -1,7 +1,7 @@
 package events_test
 
 import (
-	"windshift/service/internal/events"
+	"github.com/levelfourab/windshift-server/internal/events"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

@@ -1,6 +1,6 @@
 package state
 
-import "windshift/service/internal/events"
+import "github.com/levelfourab/windshift-server/internal/events"
 
 // IsValidStoreName checks if the store name is valid.
 func IsValidStoreName(name string) bool {

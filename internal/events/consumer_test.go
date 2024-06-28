@@ -2,7 +2,8 @@ package events_test
 
 import (
 	"context"
-	"windshift/service/internal/events"
+
+	"github.com/levelfourab/windshift-server/internal/events"
 
 	"github.com/cockroachdb/errors"
 	"github.com/nats-io/nats.go/jetstream"

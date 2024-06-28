@@ -2,7 +2,8 @@ package v1alpha1
 
 import (
 	"time"
-	"windshift/service/internal/events"
+
+	"github.com/levelfourab/windshift-server/internal/events"
 )
 
 // eventTrackerEntry contains an event and the time it was added to the tracker.

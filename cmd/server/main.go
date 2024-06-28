@@ -1,12 +1,12 @@
 package main
 
 import (
-	"windshift/service/internal/api"
-	eventsv1alpha1 "windshift/service/internal/api/events/v1alpha1"
-	statev1alpha1 "windshift/service/internal/api/state/v1alpha1"
-	"windshift/service/internal/events"
-	"windshift/service/internal/nats"
-	"windshift/service/internal/state"
+	"github.com/levelfourab/windshift-server/internal/api"
+	eventsv1alpha1 "github.com/levelfourab/windshift-server/internal/api/events/v1alpha1"
+	statev1alpha1 "github.com/levelfourab/windshift-server/internal/api/state/v1alpha1"
+	"github.com/levelfourab/windshift-server/internal/events"
+	"github.com/levelfourab/windshift-server/internal/nats"
+	"github.com/levelfourab/windshift-server/internal/state"
 
 	"github.com/levelfourab/sprout-go"
 )

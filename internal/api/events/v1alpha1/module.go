@@ -2,8 +2,9 @@ package v1alpha1
 
 import (
 	"context"
-	"windshift/service/internal/events"
-	eventsv1alpha1 "windshift/service/internal/proto/windshift/events/v1alpha1"
+
+	"github.com/levelfourab/windshift-server/internal/events"
+	eventsv1alpha1 "github.com/levelfourab/windshift-server/internal/proto/windshift/events/v1alpha1"
 
 	"github.com/levelfourab/sprout-go"
 	"go.opentelemetry.io/otel/propagation"
