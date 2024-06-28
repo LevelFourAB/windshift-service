@@ -42,12 +42,14 @@ Protobuf messages, to allow your events to evolve over time.
 | `HEALTH_PORT`                         | Port to listen on for health checks                                         | No       | `8088`                 |
 | `OTEL_PROPAGATORS`                    | The default propagators to use                                              | No       | `tracecontext,baggage` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT`         | The endpoint to send traces, metrics and logs to                            | No       |                        |
-| `OTEL_EXPORTER_OTLP_TIMEOUT`          | The timeout for sending data                                                | No       | `10s`                  |
+| `OTEL_EXPORTER_OTLP_TIMEOUT`          | The timeout in seconds for sending data                                     | No       | `10`                   |
 | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`  | Custom endpoint to send traces to, overrides `OTEL_EXPORTER_OTLP_ENDPOINT`  | No       |                        |
-| `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`   | Custom timeout for sending traces                                           | No       | `10s`                  |
+| `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`   | Custom timeout in seconds for sending traces                                | No       | `10`                   |
 | `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | Custom endpoint to send metrics to, overrides `OTEL_EXPORTER_OTLP_ENDPOINT` | No       |                        |
-| `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT`  | Custom timeout for sending metrics                                          | No       | `10s`                  |
-| `OTEL_TRACING_DEVELOPMENT`            | Enable development mode for tracing                                         | No       | `false`                |
+| `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT`  | Custom timeout in seconds for sending metrics                               | No       | `10`                   |
+| `OTEL_METRIC_EXPORT_INTERVAL`         | The interval in seconds to export metrics                                   | No       | `60`                   |
+| `OTEL_METRIC_EXPORT_TIMEOUT`          | The timeout in seconds for exporting metrics                                | No       | `30`                   |
+| `OTEL_TRACING_LOG`                    | Enable logging mode for tracing                                             | No       | `false`                |
 
 ## Usage
 
