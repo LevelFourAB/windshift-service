@@ -863,6 +863,54 @@ var _ = Describe("Event Consumption", func() {
 			case <-time.After(200 * time.Millisecond):
 			}
 		})
+
+		It("can ping events to extend their processing time", func(ctx context.Context) {
+			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
+				Stream: "events",
+				Name:   "test",
+				Subjects: []string{
+					"events.>",
+				},
+				Timeout: 200 * time.Millisecond,
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			ec, err := manager.Events(ctx, &events.EventConsumeConfig{
+				Stream: "events",
+				Name:   "test",
+			})
+			Expect(err).ToNot(HaveOccurred())
+			defer ec.Close()
+
+			msg, err := anypb.New(&emptypb.Empty{})
+			Expect(err).ToNot(HaveOccurred())
+			_, err = manager.Publish(ctx, &events.PublishConfig{
+				Subject: "events.test",
+				Data:    msg,
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			select {
+			case event := <-ec.Incoming():
+				Expect(event).ToNot(BeNil())
+
+				time.Sleep(50 * time.Millisecond)
+
+				err = event.Ping()
+				Expect(err).ToNot(HaveOccurred())
+
+				time.Sleep(50 * time.Millisecond)
+			case <-time.After(200 * time.Millisecond):
+				Fail("no event received")
+			}
+
+			select {
+			case <-ec.Incoming():
+				Fail("event received again")
+			case <-time.After(100 * time.Millisecond):
+				// Make sure event isn't delivered for a certain period
+			}
+		})
 	})
 
 	Describe("OpenTelemetry", func() {
