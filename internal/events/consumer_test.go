@@ -2,6 +2,7 @@ package events_test
 
 import (
 	"context"
+	"time"
 
 	"github.com/levelfourab/windshift-server/internal/events"
 
@@ -39,6 +40,48 @@ var _ = Describe("Consumers", func() {
 			Expect(err).To(HaveOccurred())
 		})
 
+		It("consumer with invalid stream name fails", func(ctx context.Context) {
+			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
+				Stream:   "invalid name",
+				Subjects: []string{"test"},
+			})
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("consumer with empty name fails", func(ctx context.Context) {
+			_, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
+				Stream:   "test",
+				Subjects: []string{"test"},
+			})
+			Expect(err).To(HaveOccurred())
+
+			_, err = manager.EnsureConsumer(ctx, &events.ConsumerConfig{
+				Stream:   "test",
+				Name:     "",
+				Subjects: []string{"test"},
+			})
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("consumer with invalid name fails", func(ctx context.Context) {
+			_, err := manager.EnsureStream(ctx, &events.StreamConfig{
+				Name: "test",
+				Subjects: []string{
+					"test",
+				},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			_, err = manager.EnsureConsumer(ctx, &events.ConsumerConfig{
+				Stream: "test",
+				Name:   "invalid name",
+				Subjects: []string{
+					"test",
+				},
+			})
+			Expect(err).To(HaveOccurred())
+		})
+
 		It("consumer with zero subjects fails", func(ctx context.Context) {
 			_, err := manager.EnsureStream(ctx, &events.StreamConfig{
 				Name: "test",
@@ -50,6 +93,24 @@ var _ = Describe("Consumers", func() {
 
 			_, err = manager.EnsureConsumer(ctx, &events.ConsumerConfig{
 				Stream: "test",
+			})
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("consumer with invalid subject fails", func(ctx context.Context) {
+			_, err := manager.EnsureStream(ctx, &events.StreamConfig{
+				Name: "test",
+				Subjects: []string{
+					"test",
+				},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			_, err = manager.EnsureConsumer(ctx, &events.ConsumerConfig{
+				Stream: "test",
+				Subjects: []string{
+					"invalid subject",
+				},
 			})
 			Expect(err).To(HaveOccurred())
 		})
@@ -240,6 +301,86 @@ var _ = Describe("Consumers", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(c.CachedInfo().Config.FilterSubject).To(BeEmpty())
 			Expect(c.CachedInfo().Config.FilterSubjects).To(ConsistOf("test.2", "test.3"))
+		})
+
+		Describe("From", func() {
+			It("defaults to delivering new messages", func(ctx context.Context) {
+				_, err := manager.EnsureStream(ctx, &events.StreamConfig{
+					Name: "test",
+					Subjects: []string{
+						"test",
+					},
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				s, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
+					Stream: "test",
+					Name:   "test",
+					Subjects: []string{
+						"test",
+					},
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				c, err := js.Consumer(ctx, "test", s.ID)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(c.CachedInfo().Config.DeliverPolicy).To(Equal(jetstream.DeliverNewPolicy))
+			})
+
+			It("can set to specific start time", func(ctx context.Context) {
+				_, err := manager.EnsureStream(ctx, &events.StreamConfig{
+					Name: "test",
+					Subjects: []string{
+						"test",
+					},
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				t := time.Now()
+				s, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
+					Stream: "test",
+					Name:   "test",
+					Subjects: []string{
+						"test",
+					},
+					From: &events.StreamPointer{
+						Time: t,
+					},
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				c, err := js.Consumer(ctx, "test", s.ID)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(c.CachedInfo().Config.DeliverPolicy).To(Equal(jetstream.DeliverByStartTimePolicy))
+				Expect(*c.CachedInfo().Config.OptStartTime).To(BeTemporally("~", t, time.Millisecond))
+			})
+
+			It("can set to specific start ID", func(ctx context.Context) {
+				_, err := manager.EnsureStream(ctx, &events.StreamConfig{
+					Name: "test",
+					Subjects: []string{
+						"test",
+					},
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				s, err := manager.EnsureConsumer(ctx, &events.ConsumerConfig{
+					Stream: "test",
+					Name:   "test",
+					Subjects: []string{
+						"test",
+					},
+					From: &events.StreamPointer{
+						ID: 1,
+					},
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				c, err := js.Consumer(ctx, "test", s.ID)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(c.CachedInfo().Config.DeliverPolicy).To(Equal(jetstream.DeliverByStartSequencePolicy))
+				Expect(c.CachedInfo().Config.OptStartSeq).To(Equal(uint64(1)))
+			})
 		})
 	})
 })
