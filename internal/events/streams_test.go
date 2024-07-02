@@ -35,6 +35,13 @@ var _ = Describe("Streams", func() {
 		Expect(stream.CachedInfo().Config.Name).To(Equal("test"))
 	})
 
+	It("stream can not have invalid name", func(ctx context.Context) {
+		_, err := manager.EnsureStream(ctx, &events.StreamConfig{
+			Name: "invalid name",
+		})
+		Expect(err).To(HaveOccurred())
+	})
+
 	It("parallel requests to create stream succeed", func(ctx context.Context) {
 		_, err := js.Stream(ctx, "test")
 		Expect(err).To(MatchError(jetstream.ErrStreamNotFound))
@@ -1664,6 +1671,70 @@ var _ = Describe("Streams", func() {
 				})
 				Expect(err).To(HaveOccurred())
 			})
+		})
+	})
+
+	Describe("Deduplication", func() {
+		It("default deduplication window is 2 minutes", func(ctx context.Context) {
+			_, err := js.Stream(ctx, "test")
+			Expect(err).To(MatchError(jetstream.ErrStreamNotFound))
+
+			_, err = manager.EnsureStream(ctx, &events.StreamConfig{
+				Name: "test",
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			stream, err := js.Stream(ctx, "test")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(stream.CachedInfo().Config.Duplicates).To(Equal(2 * time.Minute))
+		})
+
+		It("deduplication window can be set to 1 minute", func(ctx context.Context) {
+			_, err := js.Stream(ctx, "test")
+			Expect(err).To(MatchError(jetstream.ErrStreamNotFound))
+
+			d := 1 * time.Minute
+			_, err = manager.EnsureStream(ctx, &events.StreamConfig{
+				Name:                "test",
+				DeduplicationWindow: &d,
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			stream, err := js.Stream(ctx, "test")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(stream.CachedInfo().Config.Duplicates).To(Equal(1 * time.Minute))
+		})
+	})
+
+	Describe("Event sizes", func() {
+		It("default max event size is unknown", func(ctx context.Context) {
+			_, err := js.Stream(ctx, "test")
+			Expect(err).To(MatchError(jetstream.ErrStreamNotFound))
+
+			_, err = manager.EnsureStream(ctx, &events.StreamConfig{
+				Name: "test",
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			stream, err := js.Stream(ctx, "test")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(stream.CachedInfo().Config.MaxMsgSize).To(BeNumerically("==", -1))
+		})
+
+		It("max event size can be set to 2MB", func(ctx context.Context) {
+			_, err := js.Stream(ctx, "test")
+			Expect(err).To(MatchError(jetstream.ErrStreamNotFound))
+
+			s := uint(2 * 1024 * 1024)
+			_, err = manager.EnsureStream(ctx, &events.StreamConfig{
+				Name:         "test",
+				MaxEventSize: &s,
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			stream, err := js.Stream(ctx, "test")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(stream.CachedInfo().Config.MaxMsgSize).To(BeNumerically("==", 2*1024*1024))
 		})
 	})
 
