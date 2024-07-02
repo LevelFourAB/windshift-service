@@ -1799,5 +1799,47 @@ var _ = Describe("Streams", func() {
 			})
 			Expect(err).To(HaveOccurred())
 		})
+
+		It("replicas defaults to 1", func(ctx context.Context) {
+			_, err := js.Stream(ctx, "test")
+			Expect(err).To(MatchError(jetstream.ErrStreamNotFound))
+
+			_, err = manager.EnsureStream(ctx, &events.StreamConfig{
+				Name: "test",
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			stream, err := js.Stream(ctx, "test")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(stream.CachedInfo().Config.Replicas).To(Equal(1))
+		})
+
+		It("specifying zero replicas errors", func(ctx context.Context) {
+			_, err := js.Stream(ctx, "test")
+			Expect(err).To(MatchError(jetstream.ErrStreamNotFound))
+
+			r := uint(0)
+			_, err = manager.EnsureStream(ctx, &events.StreamConfig{
+				Name:     "test",
+				Replicas: &r,
+			})
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("can create stream with 1 replica", func(ctx context.Context) {
+			_, err := js.Stream(ctx, "test")
+			Expect(err).To(MatchError(jetstream.ErrStreamNotFound))
+
+			r := uint(1)
+			_, err = manager.EnsureStream(ctx, &events.StreamConfig{
+				Name:     "test",
+				Replicas: &r,
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			stream, err := js.Stream(ctx, "test")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(stream.CachedInfo().Config.Replicas).To(Equal(1))
+		})
 	})
 })

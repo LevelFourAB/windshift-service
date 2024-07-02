@@ -166,7 +166,11 @@ func (m *Manager) EnsureStream(ctx context.Context, config *StreamConfig) (*Stre
 		streamConfig.Sources = sources
 	}
 
-	if config.Replicas != nil && *config.Replicas == 0 {
+	if config.Replicas != nil {
+		if *config.Replicas <= 0 {
+			return nil, errors.New("replicas must be greater than 0")
+		}
+
 		streamConfig.Replicas = int(*config.Replicas)
 	} else {
 		// TODO: We may want to have a config value in the Windshift server that sets the default value
