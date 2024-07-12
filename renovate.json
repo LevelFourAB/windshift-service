@@ -30,6 +30,10 @@
 			"semanticCommitType": "fix"
 		},
 		{
+			"groupName": "OpenTelemetry",
+			"matchPackagePrefixes": [ "go.opentelemetry.io" ]
+		},
+		{
 			"groupName": "Test dependencies",
 			"matchPackageNames": [
 				"github.com/onsi/ginkgo/v2",
